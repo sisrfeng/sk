@@ -1,5 +1,5 @@
-This is a fork of [fzf.vim](https://github.com/junegunn/fzf.vim)
-but for [skim](https://github.com/lotabout/skim). Everything should work out
+This is a fork of [fzf.vim](https://github.com/junegunn/fzf.vim)  but for [skim](https://github.com/lotabout/skim).
+Everything should work out
 of the box with skim.
 
 How to use? Add the configuration to your vimrc(using vim-plug):
@@ -9,24 +9,30 @@ Plug 'lotabout/skim', { 'dir': '~/.skim', 'do': './install' }
 Plug 'lotabout/skim.vim'
 ```
 
-Besides, skim.vim add the interactive version of `ag` and `rg` function, you
-could add these lines to your vimrc and try out.
+Besides, skim.vim add the interactive version of `ag` and `rg` function,
+you could add these lines to your vimrc and try out.
 
-```vim
-command! -bang -nargs=* Ag call fzf#vim#ag_interactive(<q-args>, fzf#vim#with_preview('right:50%:hidden', 'alt-h'))
-command! -bang -nargs=* Rg call fzf#vim#rg_interactive(<q-args>, fzf#vim#with_preview('right:50%:hidden', 'alt-h'))
+    command! -bang -nargs=* Ag call fzf#vim#ag_interactive(<q-args>, fzf#vim#with_preview('right:50%:hidden', 'alt-h'))
+    command! -bang -nargs=* Rg call fzf#vim#rg_interactive(<q-args>, fzf#vim#with_preview('right:50%:hidden', 'alt-h'))
 ```
 
-Notice the functions are prefixed with `fzf`, that's because skim.vim only
-change the minimal incompatible settings and keep everything else as it is. So
-the fzf's configurations below should just work for skim.vim.
+Notice the functions are prefixed with `fzf`,
+that's because
+skim.vim only change the minimal incompatible settings and
+keep everything else as it is.
+So the fzf's configurations below should just work for skim.vim.
 
-To contributors: this project would try to maintain only the minimal changes to make it work with skim.
-And I would sync it with fzf.vim every now and then to take advantage of the work of all these excellent developers.
 
-ALL THE FOLLOWING ARE FZF's DOC.
 
----
+
+To contributors:
+this project would try to maintain only the minimal changes to make it work with skim.
+And I would sync it with fzf.vim every now and  then
+to take advantage of the work of all these excellent developers.
+
+✗ALL✗ Most THE FOLLOWING ARE FZF's DOC.
+
+---------------------------------------------------------------------------------------------
 
 fzf :heart: vim
 ===============
@@ -117,14 +123,16 @@ Commands
 | `:Filetypes`      | File types
 
 - Most commands support `CTRL-T` / `CTRL-X` / `CTRL-V` key
-  bindings to open in a new tab, a new split, or in a new vertical split
+  bindings to open in a new tab,
+              a new split,
+              or in a new vertical split
 - Bang-versions of the commands (e.g. `Ag!`) will open fzf in fullscreen
 - You can set `g:fzf_command_prefix` to give the same prefix to the commands
     - e.g. `let g:fzf_command_prefix = 'Fzf'` and you have `FzfFiles`, etc.
 
 (<a name="helptags">1</a>: `Helptags` will shadow the command of the same name
-from [pathogen][pat]. But its functionality is still available via `call
-pathogen#helptags()`. [↩](#a1))
+from [pathogen][pat].
+But its functionality is still available via `call  pathogen#helptags()`. [↩](#a1))
 
 [pat]: https://github.com/tpope/vim-pathogen
 [f]:   https://github.com/tpope/vim-fugitive
@@ -135,8 +143,9 @@ Customization
 ### Global options
 
 Every command in fzf.vim internally calls `fzf#wrap` function of the main
-repository which supports a set of global option variables. So please read
-through [README-VIM][README-VIM] to learn more about them.
+repository
+which supports a set of global option variables.
+So please read  through [README-VIM][README-VIM] to learn more about them.
 
 #### Preview window
 
@@ -365,17 +374,21 @@ Custom completion
 -----------------
 
 `fzf#vim#complete` is a helper function for creating custom fuzzy completion
-using fzf. If the first parameter is a command string or a Vim list, it will
-be used as the source.
+using fzf.
+If the first parameter is a command string or
+a Vim list,
+    it will be used as the source.
 
 ```vim
-" Replace the default dictionary completion with fzf-based fuzzy completion
-inoremap <expr> <c-x><c-k> fzf#vim#complete('cat /usr/share/dict/words')
+" Replace the default dictionary completion
+with fzf-based fuzzy completion
+    inoremap <expr> <c-x><c-k> fzf#vim#complete('cat /usr/share/dict/words')
 ```
 
-For advanced uses, you can pass an options dictionary to the function. The set
-of options is pretty much identical to that for `skim#run` only with the
-following exceptions:
+For advanced uses,
+you can pass an options dictionary to the function.
+The set of options is pretty much identical  to that for `skim#run`
+    only with the following exceptions:
 
 - `reducer` (funcref)
     - Reducer transforms the output lines of fzf into a single string value
@@ -395,25 +408,11 @@ inoremap <expr> <c-x><c-l> fzf#vim#complete(skim#wrap({
   \ 'reducer': { lines -> join(split(lines[0], ':\zs')[2:], '') }}))
 ```
 
-### Reducer example
-
-```vim
-function! s:make_sentence(lines)
-  return substitute(join(a:lines), '^.', '\=toupper(submatch(0))', '').'.'
-endfunction
-
-inoremap <expr> <c-x><c-s> fzf#vim#complete({
-  \ 'source':  'cat /usr/share/dict/words',
-  \ 'reducer': function('<sid>make_sentence'),
-  \ 'options': '--multi --reverse --margin 15%,0',
-  \ 'left':    20})
-```
-
 Status line of terminal buffer
 ------------------------------
 
-When fzf starts in a terminal buffer (see [fzf/README-VIM.md][termbuf]), you
-may want to customize the statusline of the containing buffer.
+When fzf starts in a terminal buffer (see [fzf/README-VIM.md][termbuf]),
+you  may want to customize the statusline of the containing buffer.
 
 [termbuf]: https://github.com/junegunn/fzf/blob/master/README-VIM.md#fzf-inside-terminal-buffer
 

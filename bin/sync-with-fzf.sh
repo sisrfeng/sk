@@ -22,5 +22,6 @@ case $OS in
 esac
 
 
+# 用sed, 将fzf替换为skim
 
 find . -type f -name '*.vim' | xargs -I{} $SED -i 's/fzf#exec/skim#exec/g;s/fzf#run/skim#run/g;s/+m/--no-multi/g' {}

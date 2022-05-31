@@ -242,7 +242,21 @@ set cpo&vim
         return ''
     endf
 
-    let s:ansi = {'black': 30, 'red': 31, 'green': 32, 'yellow': 33, 'blue': 34, 'magenta': 35, 'cyan': 36}
+
+    " Table 34-1. Numbers representing colors in Escape Sequences
+    "
+        " Color	Foreground	Background
+        " black	30	40
+        " red	31	41
+        " green	32	42
+        " yellow	33	43
+        " blue	34	44
+        " magenta	35	45
+        " cyan	36	46
+        " white	37	47
+
+    " let s:ansi = {'black': 30, 'red': 31, 'green': 32, 'yellow': 33, 'blue': 34, 'magenta': 35, 'cyan': 36}
+    let s:ansi = {'black': 37, 'red': 31, 'green': 32, 'yellow': 33, 'blue': 34, 'magenta': 35, 'cyan': 36}
 
     fun! s:csi(color, fg)
         let prefix = a:fg ? '38;' : '48;'

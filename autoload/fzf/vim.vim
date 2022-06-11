@@ -378,6 +378,7 @@ set cpo&vim
 " Files
     fun! s:shortpath()
         let short = fnamemodify(getcwd(), ':~:.')
+        " ~代替/home/XXX
         if !has('win32unix')
             let short = pathshorten(short)
         en
@@ -628,39 +629,77 @@ set cpo&vim
 " GFiles[?]
 
     fun! s:get_git_root()
-        let root = split(system('git rev-parse --show-toplevel'), '\n')[0]
-        return v:shell_error ? '' : root
+        let g_root = split(system('git rev-parse --show-toplevel'), '\n')[0]
+        return v:shell_error ? '' : g_root
     endf
 
     fun! fzf#vim#gitfiles(args, ...)
-        let root = s:get_git_root()
-        if empty(root)
-            return s:warn('Not in git repo')
-        en
-        if a:args != '?'
-            return s:fzf('gfiles', {
-            \ 'source':  'git ls-files '.a:args.(s:is_win ? '' : ' | uniq'),
-            \ 'dir':     root,
-            \ 'options': '-m --prompt "GitFiles> "'
-            \}, a:000)
+        let g_root = s:get_git_root()
+
+        if empty(g_root)
+            " call s:warn('Not in git repo')
+            return fzf#vim#files(getcwd())
         en
 
+        if g_root =~ '/final/' ||
+           \ g_root =~ '/dotF' ||
+           \ g_root =~ 'tbsi_final'
+            let g_root = getcwd()
+            " 别跳走到root
+        en
+
+
+        if a:args != '?'
+            " s:fzf的第一个参数是随意的name?
+            " return s:fzf('gfiles', {
+            return s:fzf('smart_files', {
+                          \ 'source'  : 'git ls-files '.a:args.(s:is_win ? '' : ' | uniq'),
+                          \ 'dir'     : g_root,
+                          \ 'options' : '-m --prompt "'..g_root..' > "'
+                      \},
+                  \ a:000
+                \ )
+        en
+
+        " -----另一个分支:
+        " if a:args == '?'
+
         " Here be dragons!
-        " We're trying to access the common sink function that skim#wrap injects to
+        " We're trying to access the common sink function that
+        " skim#wrap injects to
         " the options dictionary.
         let wrapped = skim#wrap({
-        \ 'source':  'git -c color.status=always status --short --untracked-files=all',
-        \ 'dir':     root,
-        \ 'options': ['--ansi', '--multi', '--nth', '2..,..', '--tiebreak=index', '--prompt', 'GitFiles?> ', '--preview', 'sh -c "(git diff --color=always -- {-1} | sed 1,4d; cat {-1}) | head -1000"']
+            \ 'source':  'git -c color.status=always status --short --untracked-files=all',
+            \ 'dir':     g_root,
+            \ 'options': [
+                \ '--ansi',
+                \ '--multi',
+                \ '--nth',
+                \ '2..,..',
+                \ '--tiebreak=index',
+                \ '--prompt',
+                \ 'GitFiles?> ',
+                \ '--preview',
+                \ 'sh -c "(git diff --color=always -- {-1} | sed 1,4d; cat {-1}) | head -1000"',
+               \ ]
         \})
         call s:remove_layout(wrapped)
         let wrapped.common_sink = remove(wrapped, 'sink*')
+
         fun! wrapped.newsink(lines)
-            let lines = extend(a:lines[0:0], map(a:lines[1:], 'substitute(v:val[3:], ".* -> ", "", "")'))
+            let lines = extend(
+                         \ a:lines[0:0],
+                         \ map(
+                             \ a:lines[1:],
+                             \ 'substitute(v:val[3:], ".* -> ", "", "")',
+                            \ ),
+                        \ )
             return self.common_sink(lines)
         endf
+
         let wrapped['sink*'] = remove(wrapped, 'newsink')
-        return s:fzf('gfiles-diff', wrapped, a:000)
+        echom "准备return s:fzf('gfiles-diff', wrapped, a:000)"
+        return s:fzf('files_git_diff', wrapped, a:000)
     endf
 
 " Buffers
@@ -838,7 +877,10 @@ set cpo&vim
             endf
 
             fun! fzf#vim#rg_interactive(dir, ...)
-                let dir = empty(a:dir) ? '.' : a:dir
+                let dir = empty(a:dir)
+                      \ ? '.'
+                      \ : a:dir
+
                 let command = 'rg --column --line-number --color=always '..get(g:, 'rg_opts', '') .. ' "{}" ' .. dir
                 return call(
                     \ 'fzf#vim#grep_interactive',

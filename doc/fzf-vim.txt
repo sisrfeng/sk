@@ -97,7 +97,6 @@ so you can omit it if you use a plugin manager that doesn't support hooks.
 
 
 COMMANDS                                                      *fzf-vim-commands*
-<<<<<<< Updated upstream
             *:Files*  *:GFiles*  *:Buffers*  *:Colors*  *:Ag*  *:Rg*  *:Lines*  *:BLines*  *:Tags*  *:BTags*  *:Marks*
             *:Windows*  *:Locate*  *:History*  *:Snippets*  *:Commits*  *:BCommits*  *:Commands*  *:Maps*
             *:Helptags*  *:Filetypes*
@@ -121,6 +120,7 @@ COMMANDS                                                      *fzf-vim-commands*
       `:Windows`         | Windows
       `:Locate PATTERN`  |  `locate`  command output
       `:History`         |  `v:oldfiles`  and open buffers
+                           仅限于 List of file names that is loaded from the |shada| file on startup.
       `:History:`        | Command history
       `:History/`        | Search history
       `:Snippets`        | Snippets ({UltiSnips}{8})
@@ -288,7 +288,8 @@ CUSTOMIZATION                                            *fzf-vim-customization*
 
 
     Example:  git grep wrapper  *fzf-vim-example-git-grep-wrapper*
-        The following example implements `GGrep` command that works similarly to  predefined `Ag` or `Rg
+        The following example implements `GGrep` command that works similarly to
+            predefined `Ag` or `Rg`
         using `fzf#vim#grep`.
 
          - The second argument to `fzf#vim#grep` is 0 (false),
@@ -309,13 +310,9 @@ CUSTOMIZATION                                            *fzf-vim-customization*
 
 
     Example: Rg command with preview window  *fzf-vim-example-rg-command-with-preview-window*
-        You can see the definition of `Rg` command with `:command Rg`.
+        You can see the definition of `Rg` command with `:command Rg`
         With the  information,
             you can redefine it with the preview window enabled.
-            In this  case,
-            we're only interested in setting up the preview window,
-            so we will omit  the spec argument to `fzf#vim#preview`.
-
 
             com!     -bang -nargs=* Rg
               \ call fzf#vim#grep(
@@ -326,29 +323,33 @@ CUSTOMIZATION                                            *fzf-vim-customization*
                  \ )
 
     会闪退, 不知道为啥
-    Example: Advanced ripgrep integration  *fzf-vim-example-advanced-ripgrep-integration*
+    Example:  本不支持fuzzy的ripgrep + fzf  *fzf-vim-example-advanced-ripgrep-integration*
         In the default implementation of `Rg`,
             ripgrep process starts only once
-            with the initial query (e.g.  `:Rg foo`)
+                with the initial query (e.g.  `:Rg foo`)
 
             and fzf filters the output of the process.
 
 
         This is okay in most cases because
             fzf is quite performant even with millions of lines,
-        but we can make fzf completely delegate its search responsibliity to ripgrep process
-        by making it restart ripgrep whenever the query string is updated.
-        In this scenario,
-            fzf becomes a simple selector interface rather than a "fuzzy finder".
+        but
+            we can make fzf completely delegate its search responsibliity to
+            ¿ripgrep¿ process
+                by making it restart ripgrep whenever the query string is updated.
+                In this scenario,
+                fzf becomes a simple selector interface rather than a "fuzzy finder".
 
-         - We will name the new command all-uppercase `RG` so we can still access the  default version.
+         - We will name the new command  `RG` so we can still access the  default version.
          - `--bind 'change:reload:rg ... {q}'`
-           will make fzf restart ripgrep process
-           whenever the query string, denoted by `{q}`, is changed.
+               will make fzf restart ripgrep process
+               whenever the query string `{q}` is changed.
+
                 (fake)
          - With `--phony` option,
              fzf will no longer perform search.
-             The query string you type on fzf prompt is only used for restarting ripgrep process.
+             The query string you type on fzf prompt
+                 is only used for restarting ripgrep process.
 
          - Also We enabled previewer with `fzf#vim#with_preview`.
 

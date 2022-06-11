@@ -41,16 +41,22 @@ fun! s:defs(commands)
 endf
 
 fun! s:p(bang, ...)
-    let preview_window = get(g:, 'fzf_preview_window', a:bang && &columns >= 80 || &columns >= 120 ? 'right': '')
+    let preview_window = get(
+        \ g:,
+        \ 'fzf_preview_window',
+        \ a:bang && &columns >= 80 || &columns >= 120 ? 'right': '',
+       \ )
     if len(preview_window)
-        return call('fzf#vim#with_preview', add(copy(a:000), preview_window))
+        return call(
+            \ 'fzf#vim#with_preview',
+            \ add(copy(a:000), preview_window),
+           \ )
     en
     return {}
 endf
 
 call s:defs([
     \'com!      -bang -nargs=? -complete=dir Files       call fzf#vim#files(<q-args>, s:p(<bang>0), <bang>0)',
-    \'com!      -bang -nargs=? GitFiles                  call fzf#vim#gitfiles(<q-args>, <q-args> == "?" ? {} : s:p(<bang>0), <bang>0)',
     \'com!      -bang -nargs=? GFiles                    call fzf#vim#gitfiles(<q-args>, <q-args> == "?" ? {} : s:p(<bang>0), <bang>0)',
     \'com! -bar -bang -nargs=? -complete=buffer Buffers  call fzf#vim#buffers(<q-args>, s:p(<bang>0, { "placeholder": "{1}" }), <bang>0)',
     \'com!      -bang -nargs=* Lines                     call fzf#vim#lines(<q-args>, <bang>0)',

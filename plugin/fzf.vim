@@ -63,7 +63,6 @@ call s:defs([
     \'com!      -bang -nargs=* BLines                    call fzf#vim#buffer_lines(<q-args>, <bang>0)',
     \'com! -bar -bang Colors                             call fzf#vim#colors(<bang>0)',
     \'com!      -bang -nargs=+ -complete=dir Locate      call fzf#vim#locate(<q-args>, s:p(<bang>0), <bang>0)',
-    \'com!      -bang -nargs=* Ag                        call fzf#vim#ag_interactive(<q-args>, s:p(<bang>0), <bang>0)',
     \'com!      -bang -nargs=* Rg                        call fzf#vim#rg_interactive(<q-args>, s:p(<bang>0), <bang>0)',
     \'com!      -bang -nargs=* Tags                      call fzf#vim#tags(<q-args>, <bang>0)',
     \'com!      -bang -nargs=* BTags                     call fzf#vim#buffer_tags(<q-args>, s:p(<bang>0, { "placeholder": "{2}:{3}" }), <bang>0)',
@@ -150,7 +149,6 @@ el
     ino      <expr> <plug>(fzf-complete-path)      fzf#vim#complete#path("find . -path '*/\.*' -prune -o -print \| sed '1d;s:^..::'")
     ino      <expr> <plug>(fzf-complete-file)      fzf#vim#complete#path("find . -path '*/\.*' -prune -o -type f -print -o -type l -print \| sed 's:^..::'")
 en
-ino      <expr> <plug>(fzf-complete-file-ag)     fzf#vim#complete#path('ag -l -g ""')
 ino      <expr> <plug>(fzf-complete-line)        fzf#vim#complete#line()
 ino      <expr> <plug>(fzf-complete-buffer-line) fzf#vim#complete#buffer_line()
 

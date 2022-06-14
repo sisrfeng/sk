@@ -108,7 +108,6 @@ COMMANDS                                                      *fzf-vim-commands*
       `:GFiles?`         | Git files ( `git status` )
       `:Buffers`         | Open buffers
       `:Colors`          | Color schemes
-      `:Ag [PATTERN]`    | {ag}{6} search result ( `ALT-A`  to select all,  `ALT-D`  to deselect all)
       `:Rg [PATTERN]`    | {rg}{7} search result ( `ALT-A`  to select all,  `ALT-D`  to deselect all)
       `:Lines [QUERY]`   | Lines in loaded buffers
       `:BLines [QUERY]`  | Lines in the current buffer

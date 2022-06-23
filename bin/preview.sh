@@ -39,14 +39,14 @@ if [ -z "$center" ]; then
     center=0
 fi
 
-if [ -z "$fzf_preview_command" ] && command -v bat > /dev/null; then
+if [ -z "$sk_preview_command" ] && command -v bat > /dev/null; then
     bat --style="${bat_style:-numbers}" --color=always --pager=never \
             --highlight-line=$center "$file"
     exit $?
 fi
 
 default_command="highlight -o ansi -l {} || coderay {} || rougify {} || cat {}"
-cmd=${fzf_preview_command:-$default_command}
+cmd=${sk_preview_command:-$default_command}
 cmd=${cmd//{\}/$(printf %q "$file")}
 
 eval "$cmd" 2> /dev/null | awk "{ \

@@ -12,8 +12,8 @@ Plug 'lotabout/skim.vim'
 Besides, skim.vim add the interactive version of `ag` and `rg` function,
 you could add these lines to your vimrc and try out.
 
-    command! -bang -nargs=* Ag call fzf#vim#ag_interactive(<q-args>, fzf#vim#with_preview('right:50%:hidden', 'alt-h'))
-    command! -bang -nargs=* Rg call fzf#vim#rg_interactive(<q-args>, fzf#vim#with_preview('right:50%:hidden', 'alt-h'))
+    command! -bang -nargs=* Ag call sk_funs#ag_interactive(<q-args>, sk_funs#with_preview('right:50%:hidden', 'alt-h'))
+    command! -bang -nargs=* Rg call sk_funs#rg_interactive(<q-args>, sk_funs#with_preview('right:50%:hidden', 'alt-h'))
 ```
 
 Notice the functions are prefixed with `fzf`,
@@ -189,12 +189,12 @@ a command or define a variation of it by calling its corresponding function.
 
 | Command   | Vim function                                                               |
 | ---       | ---                                                                        |
-| `Files`   | `fzf#vim#files(dir, [spec dict], [fullscreen bool])`                       |
-| `GFiles`  | `fzf#vim#gitfiles(git_options, [spec dict], [fullscreen bool])`            |
-| `GFiles?` | `fzf#vim#gitfiles('?', [spec dict], [fullscreen bool])`                    |
-| `Buffers` | `fzf#vim#buffers([spec dict], [fullscreen bool])`                          |
-| `Colors`  | `fzf#vim#colors([spec dict], [fullscreen bool])`                           |
-| `Rg`      | `fzf#vim#grep(command, [has_column bool], [spec dict], [fullscreen bool])` |
+| `Files`   | `sk_funs#files(dir, [spec dict], [fullscreen bool])`                       |
+| `GFiles`  | `sk_funs#gitfiles(git_options, [spec dict], [fullscreen bool])`            |
+| `GFiles?` | `sk_funs#gitfiles('?', [spec dict], [fullscreen bool])`                    |
+| `Buffers` | `sk_funs#buffers([spec dict], [fullscreen bool])`                          |
+| `Colors`  | `sk_funs#colors([spec dict], [fullscreen bool])`                           |
+| `Rg`      | `sk_funs#grep(command, [has_column bool], [spec dict], [fullscreen bool])` |
 | ...       | ...                                                                        |
 
 (We can see that the last two optional arguments of each function are
@@ -206,14 +206,14 @@ read [README-VIM][README-VIM] already, please read it before proceeding.)
 This is the default definition of `Files` command:
 
 ```vim
-command! -bang -nargs=? -complete=dir Files call fzf#vim#files(<q-args>, <bang>0)
+command! -bang -nargs=? -complete=dir Files call sk_funs#files(<q-args>, <bang>0)
 ```
 
 Let's say you want to a variation of it called `ProjectFiles` that only
 searches inside `~/projects` directory. Then you can do it like this:
 
 ```vim
-command! -bang ProjectFiles call fzf#vim#files('~/projects', <bang>0)
+command! -bang ProjectFiles call sk_funs#files('~/projects', <bang>0)
 ```
 
 Or, if you want to override the command with different fzf options, just pass
@@ -221,14 +221,14 @@ a custom spec to the function.
 
 ```vim
 command! -bang -nargs=? -complete=dir Files
-    \ call fzf#vim#files(<q-args>, {'options': ['--layout=reverse', '--info=inline']}, <bang>0)
+    \ call sk_funs#files(<q-args>, {'options': ['--layout=reverse', '--info=inline']}, <bang>0)
 ```
 
 Want a preview window?
 
 ```vim
 command! -bang -nargs=? -complete=dir Files
-    \ call fzf#vim#files(<q-args>, {'options': ['--layout=reverse', '--info=inline', '--preview', 'cat {}']}, <bang>0)
+    \ call sk_funs#files(<q-args>, {'options': ['--layout=reverse', '--info=inline', '--preview', 'cat {}']}, <bang>0)
 ```
 
 It kind of works, but you probably want a nicer previewer program than `cat`.
@@ -238,45 +238,45 @@ highlighting, so make sure to install it.
 
 ```vim
 command! -bang -nargs=? -complete=dir Files
-    \ call fzf#vim#files(<q-args>, {'options': ['--layout=reverse', '--info=inline', '--preview', '~/.vim/plugged/fzf.vim/bin/preview.sh {}']}, <bang>0)
+    \ call sk_funs#files(<q-args>, {'options': ['--layout=reverse', '--info=inline', '--preview', '~/.vim/plugged/fzf.vim/bin/preview.sh {}']}, <bang>0)
 ```
 
 However, it's not ideal to hard-code the path to the script which can be
 different in different circumstances. So in order to make it easier to set up
-the previewer, fzf.vim provides `fzf#vim#with_preview` helper function.
+the previewer, fzf.vim provides `sk_funs#with_preview` helper function.
 Similarly to `fzf#wrap`, it takes a spec dictionary and returns a copy of it
 with additional preview options.
 
 ```vim
 command! -bang -nargs=? -complete=dir Files
-    \ call fzf#vim#files(<q-args>, fzf#vim#with_preview({'options': ['--layout=reverse', '--info=inline']}), <bang>0)
+    \ call sk_funs#files(<q-args>, sk_funs#with_preview({'options': ['--layout=reverse', '--info=inline']}), <bang>0)
 ```
 
 You can just omit the spec argument if you only want the previewer.
 
 ```vim
 command! -bang -nargs=? -complete=dir Files
-    \ call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)
+    \ call sk_funs#files(<q-args>, sk_funs#with_preview(), <bang>0)
 ```
 
 #### Example: `git grep` wrapper
 
 The following example implements `GGrep` command that works similarly to
-predefined `Ag` or `Rg` using `fzf#vim#grep`.
+predefined `Ag` or `Rg` using `sk_funs#grep`.
 
-- The second argument to `fzf#vim#grep` is 0 (false), because `git grep` does
+- The second argument to `sk_funs#grep` is 0 (false), because `git grep` does
   not print column numbers.
 - We set the base directory to git root by setting `dir` attribute in spec
   dictionary.
 - [The preview script](bin/preview.sh) supports `grep` format
   (`FILE_PATH:LINE_NO:...`), so we can just wrap the spec with
-  `fzf#vim#with_preview` as before to enable previewer.
+  `sk_funs#with_preview` as before to enable previewer.
 
 ```vim
 command! -bang -nargs=* GGrep
-  \ call fzf#vim#grep(
+  \ call sk_funs#grep(
   \   'git grep --line-number -- '.shellescape(<q-args>), 0,
-  \   fzf#vim#with_preview({'dir': systemlist('git rev-parse --show-toplevel')[0]}), <bang>0)
+  \   sk_funs#with_preview({'dir': systemlist('git rev-parse --show-toplevel')[0]}), <bang>0)
 ```
 
 #### Example: `Rg` command with preview window
@@ -284,13 +284,13 @@ command! -bang -nargs=* GGrep
 You can see the definition of `Rg` command with `:command Rg`. With the
 information, you can redefine it with the preview window enabled. In this
 case, we're only interested in setting up the preview window, so we will omit
-the spec argument to `fzf#vim#preview`.
+the spec argument to `sk_funs#preview`.
 
 ```vim
 command! -bang -nargs=* Rg
-  \ call fzf#vim#grep(
+  \ call sk_funs#grep(
   \   'rg --column --line-number --no-heading --color=always --smart-case -- '.shellescape(<q-args>), 1,
-  \   fzf#vim#with_preview(), <bang>0)
+  \   sk_funs#with_preview(), <bang>0)
 ```
 
 #### Example: Advanced ripgrep integration
@@ -310,7 +310,7 @@ a "fuzzy finder".
   whenever the query string, denoted by `{q}`, is changed.
 - With `--phony` option, fzf will no longer perform search. The query string
   you type on fzf prompt is only used for restarting ripgrep process.
-- Also note that we enabled previewer with `fzf#vim#with_preview`.
+- Also note that we enabled previewer with `sk_funs#with_preview`.
 
 ```vim
 function! RipgrepFzf(query, fullscreen)
@@ -318,7 +318,7 @@ function! RipgrepFzf(query, fullscreen)
   let initial_command = printf(command_fmt, shellescape(a:query))
   let reload_command = printf(command_fmt, '{q}')
   let spec = {'options': ['--phony', '--query', a:query, '--bind', 'change:reload:'.reload_command]}
-  call fzf#vim#grep(initial_command, 1, fzf#vim#with_preview(spec), a:fullscreen)
+  call sk_funs#grep(initial_command, 1, sk_funs#with_preview(spec), a:fullscreen)
 endfunction
 
 command! -nargs=* -bang RG call RipgrepFzf(<q-args>, <bang>0)
@@ -356,24 +356,24 @@ Completion functions
 
 | Function                                 | Description                           |
 | ---                                      | ---                                   |
-| `fzf#vim#complete#path(command, [spec])` | Path completion                       |
-| `fzf#vim#complete#word([spec])`          | Word completion                       |
-| `fzf#vim#complete#line([spec])`          | Line completion (all open buffers)    |
-| `fzf#vim#complete#buffer_line([spec])`   | Line completion (current buffer only) |
+| `comple_sk#path(command, [spec])` | Path completion                       |
+| `comple_sk#word([spec])`          | Word completion                       |
+| `comple_sk#line([spec])`          | Line completion (all open buffers)    |
+| `comple_sk#buffer_line([spec])`   | Line completion (current buffer only) |
 
 ```vim
 " Path completion with custom source command
-inoremap <expr> <c-x><c-f> fzf#vim#complete#path('fd')
-inoremap <expr> <c-x><c-f> fzf#vim#complete#path('rg --files')
+inoremap <expr> <c-x><c-f> comple_sk#path('fd')
+inoremap <expr> <c-x><c-f> comple_sk#path('rg --files')
 
 " Word completion with custom spec with popup layout option
-inoremap <expr> <c-x><c-k> fzf#vim#complete#word({'window': { 'width': 0.2, 'height': 0.9, 'xoffset': 1 }})
+inoremap <expr> <c-x><c-k> comple_sk#word({'window': { 'width': 0.2, 'height': 0.9, 'xoffset': 1 }})
 ```
 
 Custom completion
 -----------------
 
-`fzf#vim#complete` is a helper function for creating custom fuzzy completion
+`sk_funs#complete` is a helper function for creating custom fuzzy completion
 using fzf.
 If the first parameter is a command string or
 a Vim list,
@@ -382,7 +382,7 @@ a Vim list,
 ```vim
 " Replace the default dictionary completion
 with fzf-based fuzzy completion
-    inoremap <expr> <c-x><c-k> fzf#vim#complete('cat /usr/share/dict/words')
+    inoremap <expr> <c-x><c-k> sk_funs#complete('cat /usr/share/dict/words')
 ```
 
 For advanced uses,
@@ -401,7 +401,7 @@ The set of options is pretty much identical  to that for `skim#run`
 
 ```vim
 " Global line completion (not just open buffers. ripgrep required.)
-inoremap <expr> <c-x><c-l> fzf#vim#complete(skim#wrap({
+inoremap <expr> <c-x><c-l> sk_funs#complete(skim#wrap({
   \ 'prefix': '^.*$',
   \ 'source': 'rg -n ^ --color always',
   \ 'options': '--ansi --delimiter : --nth 3..',

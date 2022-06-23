@@ -65,11 +65,17 @@ fun! s:history(arg, extra, bang)
     en
 endf
 
+" 谁调用它?
+" 作者忘记删掉?
 fun! fzf#complete(...)
     return call('sk_funs#complete', a:000)
 endf
 
-if (has('nvim') || has('terminal') && has('patch-8.0.995')) && (get(g:, 'fzf_statusline', 1) || get(g:, 'fzf_nvim_statusline', 1))
+if (has('nvim')
+\ || has('terminal')
+\ && has('patch-8.0.995'))
+\ && (get(g:, 'fzf_statusline', 1)
+\ || get(g:, 'fzf_nvim_statusline', 1))
     fun! s:fzf_restore_colors()
         if exists('#User#FzfStatusLine')
             doautocmd User FzfStatusLine

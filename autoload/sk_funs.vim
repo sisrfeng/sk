@@ -95,7 +95,7 @@ set cpo&vim
     "  \ [preview window expression],
     "  \ [toggle-preview keys...],
     " \ ]
-    fun! fzf#vim#with_preview(...)
+    fun! sk_funs#with_preview(...)
         " Default spec
         let spec   =  {}
         let window =  ''
@@ -397,7 +397,7 @@ set cpo&vim
         en
     endf
 
-    fun! fzf#vim#_uniq(list)
+    fun! sk_funs#_uniq(list)
         let visited = {}
         let ret = []
         for l in a:list
@@ -420,7 +420,7 @@ set cpo&vim
         return empty(short) ? '~'.slash : short . (short =~ escape(slash, '\').'$' ? '' : slash)
     endf
 
-    fun! fzf#vim#files(dir, ...)
+    fun! sk_funs#files(dir, ...)
         let args = {}
         if !empty(a:dir)
             if !isdirectory(expand(a:dir))
@@ -467,7 +467,7 @@ set cpo&vim
         norm! ^zvzz
     endf
 
-    fun! fzf#vim#_lines(all)
+    fun! sk_funs#_lines(all)
         let cur  = []
         let rest = []
         let buf  = bufnr('')
@@ -508,8 +508,8 @@ set cpo&vim
         return [display_bufnames, extend(cur, rest)]
     endf
 
-    fun! fzf#vim#lines(...)
-        let [display_bufnames, lines] = fzf#vim#_lines(1)
+    fun! sk_funs#lines(...)
+        let [display_bufnames, lines] = sk_funs#_lines(1)
         let nth = display_bufnames
                 \ ? 3
                 \ : 2
@@ -608,8 +608,8 @@ set cpo&vim
         endif
     endf
 
-    " call fzf#vim#buffer_lines(<q-args>, <bang>0)
-    fun! fzf#vim#buffer_lines(...)
+    " call sk_funs#buffer_lines(<q-args>, <bang>0)
+    fun! sk_funs#buffer_lines(...)
         let [query, args] = (a:0 && type(a:1) == type(''))
                         \ ? [a:1, a:000[1:]]
                         \ : ['', a:000]
@@ -636,20 +636,20 @@ set cpo&vim
 
 
 " Colors
-    fun! fzf#vim#colors(...)
+    fun! sk_funs#colors(...)
         let colors = split(globpath(&rtp, "colors/*.vim"), "\n")
         if has('packages')
             let colors += split(globpath(&packpath, "pack/*/opt/*/colors/*.vim"), "\n")
         en
         return s:fzf('colors', {
-        \ 'source':  fzf#vim#_uniq(map(colors, "substitute(fnamemodify(v:val, ':t'), '\\..\\{-}$', '', '')")),
+        \ 'source':  sk_funs#_uniq(map(colors, "substitute(fnamemodify(v:val, ':t'), '\\..\\{-}$', '', '')")),
         \ 'sink':    'colo',
         \ 'options': '-m --prompt="Colors> "'
         \}, a:000)
     endf
 
 " Locate
-    fun! fzf#vim#locate(query, ...)
+    fun! sk_funs#locate(query, ...)
         return s:fzf('locate', {
         \ 'source':  'locate '.a:query,
         \ 'options': '-m --prompt "Locate> "'
@@ -657,10 +657,10 @@ set cpo&vim
     endf
 
 " History[:/]
-    fun! fzf#vim#_recent_files()
-        return fzf#vim#_uniq(map(
+    fun! sk_funs#_recent_files()
+        return sk_funs#_uniq(map(
             \ filter([expand('%')], 'len(v:val)')
-            \   + filter(map(fzf#vim#_buflisted_sorted(), 'bufname(v:val)'), 'len(v:val)')
+            \   + filter(map(sk_funs#_buflisted_sorted(), 'bufname(v:val)'), 'len(v:val)')
             \   + filter(copy(v:oldfiles), "filereadable(fnamemodify(v:val, ':p'))"),
             \ 'fnamemodify(v:val, ":~:.")'))
     endf
@@ -702,7 +702,7 @@ set cpo&vim
         call s:history_sink(':', a:lines)
     endf
 
-    fun! fzf#vim#command_history(...)
+    fun! sk_funs#command_history(...)
         return s:fzf('history-command', {
         \ 'source':  s:history_source(':'),
         \ 'sink*':   function('s:cmd_history_sink'),
@@ -715,16 +715,16 @@ set cpo&vim
         call s:history_sink('/', a:lines)
     endf
 
-    fun! fzf#vim#search_history(...)
+    fun! sk_funs#search_history(...)
         return s:fzf('history-search', {
         \ 'source':  s:history_source('/'),
         \ 'sink*':   function('s:search_history_sink'),
         \ 'options': '--layout=reverse -m --ansi --prompt="Hist/> " --header-lines=1 --expect=ctrl-e --tiebreak=index'}, a:000)
     endf
 
-    fun! fzf#vim#history(...)
+    fun! sk_funs#history(...)
         return s:fzf('history-files', {
-        \ 'source':  fzf#vim#_recent_files(),
+        \ 'source':  sk_funs#_recent_files(),
         \ 'options': s:reverse_list([
             \ '-m',
             \ '--header-lines',
@@ -742,12 +742,12 @@ set cpo&vim
         return v:shell_error ? '' : g_root
     endf
 
-    fun! fzf#vim#gitfiles(args, ...)
+    fun! sk_funs#gitfiles(args, ...)
         let g_root = s:get_git_root()
 
         if empty(g_root)
             " call s:warn('Not in git repo')
-            return fzf#vim#files(getcwd())
+            return sk_funs#files(getcwd())
         en
 
         if g_root =~ '/final/' ||
@@ -853,7 +853,7 @@ set cpo&vim
         exe     'buffer' b
     endf
 
-    fun! fzf#vim#_format_buffer(b)
+    fun! sk_funs#_format_buffer(b)
         let name = bufname(a:b)
         let line = exists('*getbufinfo') ? getbufinfo(a:b)[0]['lnum'] : 0
         let name = empty(name) ? '[No Name]' : fnamemodify(name, ":p:~:.")
@@ -867,20 +867,20 @@ set cpo&vim
     endf
 
     fun! s:sort_buffers(...)
-        let [b1, b2] = map(copy(a:000), 'get(g:fzf#vim#buffers, v:val, v:val)')
+        let [b1, b2] = map(copy(a:000), 'get(g:sk_funs#buffers, v:val, v:val)')
         " Using minus between a float and a number in a sort function causes an error
         return b1 < b2 ? 1 : -1
     endf
 
-    fun! fzf#vim#_buflisted_sorted()
+    fun! sk_funs#_buflisted_sorted()
         return sort(s:buflisted(), 's:sort_buffers')
     endf
 
-    fun! fzf#vim#buffers(...)
+    fun! sk_funs#buffers(...)
         let [query, args] = (a:0 && type(a:1) == type('')) ?
                     \ [a:1, a:000[1:]] : ['', a:000]
         return s:fzf('buffers', {
-        \ 'source':  map(fzf#vim#_buflisted_sorted(), 'fzf#vim#_format_buffer(v:val)'),
+        \ 'source':  map(sk_funs#_buflisted_sorted(), 'sk_funs#_format_buffer(v:val)'),
         \ 'sink*':   function('s:bufopen'),
         \ 'options': ['--no-multi', '-x', '--tiebreak=index', '--header-lines=1', '--ansi', '-d', '\t', '--with-nth', '3..', '-n', '2,1..2', '--prompt', 'Buf> ', '--query', query, '--preview-window', '+{2}-/2']
         \}, args)
@@ -922,7 +922,7 @@ set cpo&vim
     endf
 
     " interactive:
-        fun! fzf#vim#grep_interactive(command, column_01, ...)
+        fun! sk_funs#grep_interactive(command, column_01, ...)
             let words = []
             " command可以长这样:
             " 'rg  --line-number --color=always '..get(g:, 'rg_opts', '')..' "{}" ' .. dir
@@ -978,22 +978,22 @@ set cpo&vim
             return s:fzf(name, opts, a:000)
         endf
 
-            fun! fzf#vim#ag_interactive(dir, ...)
+            fun! sk_funs#ag_interactive(dir, ...)
                 let dir = empty(a:dir) ? '.' : a:dir
                 let command = 'ag --nogroup --column --color '.get(g:, 'ag_opts', '').' "{}" ' . dir
                 return call(
-                    \ 'fzf#vim#grep_interactive',
+                    \ 'sk_funs#grep_interactive',
                     \ extend([command, 1], a:000, ),
                    \ )
             endf
 
-            fun! fzf#vim#rg_interactive(dir, ...)
+            fun! sk_funs#rg_interactive(dir, ...)
                 let dir = empty(a:dir)
                         \ ? '.'
                         \ : a:dir
                 let command = 'rg --column --line-number --color=always '..get(g:, 'rg_opts', '') .. ' "{}" ' .. dir
                 return call(
-                    \ 'fzf#vim#grep_interactive',
+                    \ 'sk_funs#grep_interactive',
                     \ extend([command, 1], a:000),
                    \ )
             endf
@@ -1002,7 +1002,7 @@ set cpo&vim
 
     " ag() (非interactive):
         " query, [[ag options], options]
-        fun! fzf#vim#ag(query, ...)
+        fun! sk_funs#ag(query, ...)
             if type(a:query) != s:TYPE.string
                 return s:warn('Invalid query argument')
             en
@@ -1010,19 +1010,19 @@ set cpo&vim
             let args = copy(a:000)
             let ag_opts = len(args) > 1 && type(args[0]) == s:TYPE.string ? remove(args, 0) : ''
             let command = ag_opts . ' -- ' . skim#shellescape(query)
-            return call('fzf#vim#ag_raw', insert(args, command, 0))
+            return call('sk_funs#ag_raw', insert(args, command, 0))
         endf
 
             " ag command suffix, [options]
-            fun! fzf#vim#ag_raw(command_suffix, ...)
+            fun! sk_funs#ag_raw(command_suffix, ...)
                 if !executable('ag')
                     return s:warn('ag is not found')
                 en
-                return call('fzf#vim#grep', extend(['ag --nogroup --column --color '.a:command_suffix, 1], a:000))
+                return call('sk_funs#grep', extend(['ag --nogroup --column --color '.a:command_suffix, 1], a:000))
             endf
 
                 " 参数: command (string), has_column (0/1), [options (dict)], [fullscreen (0/1)]
-                fun! fzf#vim#grep(grep_command, has_column, ...)
+                fun! sk_funs#grep(grep_command, has_column, ...)
                     let words = []
                     for word in split(a:grep_command)
                         if word !~# '^[a-z]'
@@ -1094,7 +1094,7 @@ set cpo&vim
     endf
 
     " query, [[tag commands], options]
-    fun! fzf#vim#buffer_tags(query, ...)
+    fun! sk_funs#buffer_tags(query, ...)
         let args = copy(a:000)
         let escaped = skim#shellescape(expand('%'))
         let null = s:is_win ? 'nul' : '/dev/null'
@@ -1148,7 +1148,7 @@ set cpo&vim
         norm! zvzz
     endf
 
-    fun! fzf#vim#tags(query, ...)
+    fun! sk_funs#tags(query, ...)
         if !executable('perl')
             return s:warn('Tags command requires perl')
         en
@@ -1194,7 +1194,7 @@ set cpo&vim
         exe     'normal! a'.s:strip(snip)."\<c-r>=UltiSnips#ExpandSnippet()\<cr>"
     endf
 
-    fun! fzf#vim#snippets(...)
+    fun! sk_funs#snippets(...)
         if !exists(':UltiSnipsEdit')
             return s:warn('UltiSnips not found')
         en
@@ -1263,7 +1263,7 @@ set cpo&vim
         return commands
     endf
 
-    fun! fzf#vim#commands(...)
+    fun! sk_funs#commands(...)
         redir => cout
         silent command
         redir END
@@ -1296,7 +1296,7 @@ set cpo&vim
         exe     'normal! `'.matchstr(a:lines[1], '\S').'zz'
     endf
 
-    fun! fzf#vim#marks(...)
+    fun! sk_funs#marks(...)
         redir => cout
         silent marks
         redir END
@@ -1318,13 +1318,13 @@ set cpo&vim
         " exe  'help' tag
     endf
 
-    fun! fzf#vim#helptags(...)
+    fun! sk_funs#helptags(...)
         if !executable('grep') || !executable('perl')  | return s:warn('Helptags command requires grep and perl')  | en
 
         let sorted = sort(split(globpath(&runtimepath, 'doc/tags', 1), '\n'))
         let tags = exists('*uniq')
                 \ ? uniq(sorted)
-                \ : fzf#vim#_uniq(sorted)
+                \ : sk_funs#_uniq(sorted)
 
         if exists('s:helptags_script')  | silent! call delete(s:helptags_script)  | en
 
@@ -1376,9 +1376,9 @@ set cpo&vim
     endf
 
 " File types
-    fun! fzf#vim#filetypes(...)
+    fun! sk_funs#filetypes(...)
         return s:fzf('filetypes', {
-        \ 'source':  fzf#vim#_uniq(sort(map(split(globpath(&rtp, 'syntax/*.vim'), '\n'),
+        \ 'source':  sk_funs#_uniq(sort(map(split(globpath(&rtp, 'syntax/*.vim'), '\n'),
         \            'fnamemodify(v:val, ":t:r")'))),
         \ 'sink':    'setf',
         \ 'options': '-m --prompt="File types> "'
@@ -1399,7 +1399,7 @@ set cpo&vim
         call s:jump(list[1], list[2])
     endf
 
-    fun! fzf#vim#windows(...)
+    fun! sk_funs#windows(...)
         let lines = []
         for t in range(1, tabpagenr('$'))
             let buffers = tabpagebuflist(t)
@@ -1507,15 +1507,15 @@ set cpo&vim
            \ )
     endf
 
-    fun! fzf#vim#commits(...)
+    fun! sk_funs#commits(...)
         return s:commits(0, a:000)
     endf
 
-    fun! fzf#vim#buffer_commits(...)
+    fun! sk_funs#buffer_commits(...)
         return s:commits(1, a:000)
     endf
 
-" fzf#vim#maps(mode, opts[with count and op])
+" sk_funs#maps(mode, opts[with count and op])
     fun! s:align_pairs(list)
         let maxlen = 0
         let pairs = []
@@ -1543,7 +1543,7 @@ set cpo&vim
                     \ substitute(key, '<[^ >]\+>', '\=eval("\"\\".submatch(0)."\"")', 'g'))
     endf
 
-    fun! fzf#vim#maps(mode, ...)
+    fun! sk_funs#maps(mode, ...)
         let s:map_gv  = a:mode == 'x' ? 'gv' : ''
         let s:map_cnt = v:count == 0 ? '' : v:count
         let s:map_reg = empty(v:register) ? '' : ('"'.v:register)
@@ -1582,7 +1582,7 @@ set cpo&vim
         \ a:000)
     endf
 
-" fzf#vim#complete - completion helper
+" sk_funs#complete - completion helper
     ino      <silent> <Plug>(-fzf-complete-trigger)   <c-o>:call <sid>complete_trigger()<cr>
 
     fun! s:pluck(dict, key, default)
@@ -1641,7 +1641,7 @@ set cpo&vim
         return a:dict
     endf
 
-    fun! fzf#vim#complete(...)
+    fun! sk_funs#complete(...)
         if a:0 == 0
             let s:opts = skim#wrap()
         elseif type(a:1) == s:TYPE.dict

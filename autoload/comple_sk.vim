@@ -23,8 +23,8 @@ el
     endf
 en
 
-fun! fzf#vim#complete#word(...)
-    return fzf#vim#complete(s:extend({
+fun! comple_sk#word(...)
+    return sk_funs#complete(s:extend({
         \ 'source': 'cat /usr/share/dict/words'},
         \ get(a:000, 0, skim#wrap())))
 endf
@@ -102,9 +102,9 @@ fun! s:fname_prefix(str)
     return prefix
 endf
 
-fun! fzf#vim#complete#path(command, ...)
+fun! comple_sk#path(command, ...)
     let s:file_cmd = a:command
-    return fzf#vim#complete(s:extend({
+    return sk_funs#complete(s:extend({
     \ 'prefix':  s:function('s:fname_prefix'),
     \ 'source':  s:function('s:file_source'),
     \ 'options': s:function('s:file_options')}, get(a:000, 0, skim#wrap())))
@@ -119,20 +119,20 @@ fun! s:reduce_line(lines)
 endf
 
 
-fun! fzf#vim#complete#line(...)
-    let [display_bufnames, lines] = fzf#vim#_lines(0)
+fun! comple_sk#line(...)
+    let [display_bufnames, lines] = sk_funs#_lines(0)
     let nth = display_bufnames ? 4 : 3
-    return fzf#vim#complete(s:extend({
+    return sk_funs#complete(s:extend({
     \ 'prefix':  '^.*$',
     \ 'source':  lines,
     \ 'options': '--tiebreak=index --ansi --nth '.nth.'.. --tabstop=1',
     \ 'reducer': s:function('s:reduce_line')}, get(a:000, 0, skim#wrap())))
 endf
 
-fun! fzf#vim#complete#buffer_line(...)
-    return fzf#vim#complete(s:extend({
+fun! comple_sk#buffer_line(...)
+    return sk_funs#complete(s:extend({
     \ 'prefix': '^.*$',
-    \ 'source': fzf#vim#_uniq(getline(1, '$'))}, get(a:000, 0, skim#wrap())))
+    \ 'source': sk_funs#_uniq(getline(1, '$'))}, get(a:000, 0, skim#wrap())))
 endf
 
 let &cpo = s:cpo_save

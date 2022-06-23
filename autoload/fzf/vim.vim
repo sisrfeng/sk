@@ -1,29 +1,11 @@
-" Copyright (c) 2017 Junegunn Choi
-    " MIT License
-    "
-    " Permission is hereby granted, free of charge, to any person obtaining
-    " a copy of this software and associated documentation files (the
-    " "Software"), to deal in the Software without restriction, including
-    " without limitation the rights to use, copy, modify, merge, publish,
-    " distribute, sublicense, and/or sell copies of the Software, and to
-    " permit persons to whom the Software is furnished to do so, subject to
-    " the following conditions:
-    "
-    " The above copyright notice and this permission notice shall be
-    " included in all copies or substantial portions of the Software.
-    "
-    " THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    " EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    " MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    " NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-    " LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    " OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-    " WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+" 说明详见:  /home/wf/.local/share/nvim/PL/skim4vim/skim的非vim插件的配合vim的方法.md
 
 let s:cpo_save = &cpo
 set cpo&vim
 
 " Common
+
     let s:min_version = '0.9.3'
     let s:is_win = has('win32') || has('win64')
     let s:layout_keys = ['window', 'up', 'down', 'left', 'right']
@@ -179,13 +161,14 @@ set cpo&vim
         endfor
         return a:opts
     endf
-    let s:fzf_default_optS = "--bind=ctrl-d:page-down,ctrl-u:page-up,ctrl-y:yank,tab:down,btab:up --inline-info  --height 50%"
-    " let s:fzf_default_optS = "--bind=ctrl-d:page-down,ctrl-u:page-up,ctrl-y:yank,tab:down,btab:up --inline-info --reverse --height 50%"
-    " # export FZF_DEFAULT_COMMAND='ag -U --hidden --follow --nogroup --nocolor -g ""'
 
-    fun! s:reverse_list(opts)
+
+
+    fun! s:reverse_list(opt_list)
+    " 如果没加--layout=reverse_list, 就加上
+    " 没干别的
         let tokens = map(
-                   \ split(s:fzf_default_optS, '[^a-z-]'),
+                   \ split($SKIM_DEFAULT_OPTIONS, '[^a-z-]'),
                      "\ split($FZF_DEFAULT_OPTS, '[^a-z-]'),
                    \ 'substitute(v:val, "^--", "", "")',
                   \ )
@@ -212,10 +195,10 @@ set cpo&vim
                     " \ ]
 
         if index(tokens, 'reverse') < 0
-            return extend(['--layout=reverse-list'], a:opts)
+            return extend(['--layout=reverse-list'], a:opt_list)
         en
 
-        return a:opts
+        return a:opt_list
     endf
 
     fun! s:wrap(name, opts, bang)
@@ -252,16 +235,6 @@ set cpo&vim
         return s:is_win ? escape(path, '$') : path
     endf
 
-    if v:version >= 704
-        fun! s:function(name)
-            return function(a:name)
-        endf
-    el
-        fun! s:function(name)
-            " By Ingo Karkat
-            return function(substitute(a:name, '^s:', matchstr(expand('<sfile>'), '<SNR>\d\+_\zefunction$'), ''))
-        endf
-    en
 
     fun! s:get_color(attr, ...)
         let gui = has('termguicolors') && &termguicolors
@@ -303,9 +276,18 @@ set cpo&vim
     fun! s:ansi(str, group, default, ...)
         let fg = s:get_color('fg', a:group)
         let bg = s:get_color('bg', a:group)
-        let color = (empty(fg) ? s:ansi[a:default] : s:csi(fg, 1)) .
-                    \ (empty(bg) ? '' : ';'.s:csi(bg, 0))
-        return printf("\x1b[%s%sm%s\x1b[m", color, a:0 ? ';1' : '', a:str)
+        let color = (empty(fg)
+                    \ ? s:ansi[a:default]
+                    \ : s:csi(fg, 1)) .   (empty(bg)
+                                            \ ? ''
+                                            \ : ';' . s:csi(bg, 0))
+
+        return printf("\x1b[%s%sm%s\x1b[m",
+                \ color,
+                \ a:0 ?
+                   \ ';1'
+                    \ : '',
+                \ a:str)
     endf
 
     for s:color_name in keys(s:ansi)
@@ -340,6 +322,9 @@ set cpo&vim
                     \ : ''
         let merged_opts = extend(copy(a:opts), extra)
         call s:merge_opts(merged_opts, eopts)
+
+        " todo: 默认把所有options 经过s:reverse-list()  过滤
+            "( 加 --layout=reverse-list)
         return skim#run( s:wrap(
                          \ a:name,
                          \ merged_opts,
@@ -348,23 +333,28 @@ set cpo&vim
                  \)
     endf
 
-    let s:default_action = {
+    let s:key2editCmd = {
         \ 'ctrl-t': 'tab split',
         \ 'ctrl-x': 'split',
-        \ 'ctrl-v': 'vsplit' }
+        \ 'ctrl-v': 'vsplit'
+        \ }
 
-    fun! s:action_for(key, ...)
-        let default = a:0
+    fun! s:edit_cmd(key, ...)
+        let cmd_spec = a:0
                     \ ? a:1
                     \ : ''
         let Cmd = get(
-                  \ get(g:, 'skim_action', s:default_action),
-                  \ a:key,
-                  \ default,
-                 \ )
+                \ get(
+                    \ g:            ,
+                   \ 'sk_editCmd'   ,
+                    \ s:key2editCmd ,
+                   \ ),
+                \ a:key,
+                \ cmd_spec,
+               \ )
         return  type(Cmd) == s:TYPE.string
           \ ? Cmd
-          \ : default
+          \ : cmd_spec
     endf
 
     fun! s:open(cmd, target)
@@ -443,7 +433,12 @@ set cpo&vim
             let dir = s:shortpath()
         en
 
-        let args.options = ['-m', '--prompt', strwidth(dir) < &columns / 2 - 20 ? dir : '> ']
+        let args.options = [
+                         \ '--layout=reverse-list'                        ,
+                         \ '-m'                                           ,
+                         \ '--prompt'                                     ,
+                         \ strwidth(dir) < &columns / 2 - 20 ? dir : '> ' ,
+                     \ ]
         call s:merge_opts(args, get(g:, 'fzf_files_options', []))
         return s:fzf('files', args, a:000)
     endf
@@ -451,27 +446,34 @@ set cpo&vim
 
 " Lines
     fun! s:line_handler(lines)
-        if len(a:lines) < 2
-            return
-        en
-        normal! m'
-        let cmd = s:action_for(a:lines[0])
-        if !empty(cmd) && stridx('edit', cmd) < 0
-            exe     'silent' cmd
+        if len(a:lines) < 2  | return  | en
+          " 只有prompt等
+
+        norm! m'
+
+        let cmd = s:edit_cmd(a:lines[0])
+        echom "a:lines[0] 是: "   a:lines[0]
+        echom "cmd 是: "   cmd
+
+        if !empty(cmd)
+      \ && stridx('edit', cmd) < 0
+            exe  'silent' cmd
         en
 
         let keys = split(a:lines[1], '\t')
-        exe     'buffer' keys[0]
-        exe     keys[2]
-        normal! ^zvzz
+        exe  'buffer' keys[0]
+        exe   keys[2]
+
+        norm! ^zvzz
     endf
 
     fun! fzf#vim#_lines(all)
-        let cur = []
+        let cur  = []
         let rest = []
-        let buf = bufnr('')
+        let buf  = bufnr('')
         let longest_name = 0
-        let display_bufnames = &columns > s:wide
+        let display_bufnames =  &columns > s:wide
+
         if display_bufnames
             let bufnames = {}
             for b in s:buflisted()
@@ -479,6 +481,7 @@ set cpo&vim
                 let longest_name = max([longest_name, len(bufnames[b])])
             endfor
         en
+
         let len_bufnames = min([15, longest_name])
         for b in s:buflisted()
             let lines = getbufline(b, 1, "$")
@@ -507,75 +510,127 @@ set cpo&vim
 
     fun! fzf#vim#lines(...)
         let [display_bufnames, lines] = fzf#vim#_lines(1)
-        let nth = display_bufnames ? 3 : 2
+        let nth = display_bufnames
+                \ ? 3
+                \ : 2
         let [query, args] = (a:0 && type(a:1) == type('')) ?
                         \ [a:1, a:000[1:]]
                         \ : ['', a:000]
         return
             \ s:fzf('lines',
                     \ {
-                        \ 'source':  lines,
-                        \ 'sink*':   s:function('s:line_handler'),
-                        \ 'options': s:reverse_list([
-                                                    \ '--no-multi',
-                                                    \ '--tiebreak=index',
-                                                    \ '--prompt',
-                                                        \ 'Lines> ',
-                                                    \ '--ansi',
-                                                    \ '--extended',
-                                                    \ '--nth='.nth.'..',
-                                                    \ '--tabstop=1',
-                                                    \ '--query',
-                                                    \ query,
-                                                   \ ])
+                     \ 'source':  lines,
+                     \ 'sink*':   function('s:line_handler'),
+                     \ 'options': s:reverse_list([
+                                                 \ '--no-multi',
+                                                 \ '--tiebreak=index',
+                                                 \ '--prompt',
+                                                     \ 'Lines> ',
+                                                 \ '--ansi',
+                                                 \ '--extended',
+                                                 \ '--nth='.nth.'..',
+                                                 \ '--tabstop=1',
+                                                 \ '--query',
+                                                 \ query,
+                                                \ ])
                     \},
-                \ args
+                 \ args
                 \ )
     endf
 
 " BLines
-    fun! s:buffer_line_handler(lines)
-        if len(a:lines) < 2
-            return
-        en
+    fun! s:buffer_line_sink(lines)
+    echom "lines 是: "   a:lines
+        "\ || lines 是:  ['enter', '  352 ^I    fun! s:align_lists(lists)']
+        "\ || lines 是:  ['enter', '  901 ^I                "\ shell执行的是它?    sh -c ''rg --line-number ...''']
+
+        if len(a:lines) < 2  | return  | en
+
         let qfl = []
         for line in a:lines[1:]
-            let chunks = split(line, "\t", 1)
-            let ln = chunks[0]
-            let ltxt = join(chunks[1:], "\t")
-            call add(qfl, {'filename': expand('%'), 'lnum': str2nr(ln), 'text': ltxt})
+            let chunks = split(line, "\t" , 1)
+            let ln     = chunks[0]
+            let ltxt   = join(chunks[1:], "\t")
+            call add(
+              \ qfl,
+              \ {
+                \ 'filename'  :  expand('%') ,
+                \ 'lnum'      :  str2nr(ln)  ,
+                \ 'text'      :  ltxt        ,
+               \ },
+             \ )
         endfor
         call s:fill_quickfix(qfl, 'cfirst')
-        normal! m'
-        let cmd = s:action_for(a:lines[0])
-        if !empty(cmd)
-            exe     'silent' cmd
-        en
+        echom "qfl 是: "   qfl
 
-        exe     split(a:lines[1], '\t')[0]
-        normal! ^zvzz
+        norm! m'
+        " 用tabedit, split等
+        " 没必要
+            " let cmd = s:edit_cmd(a:lines[0],'')
+            " if !empty(cmd)
+            "     " echom  'silent' cmd
+            "             " silent -tab split
+            "     exe 'silent' cmd
+            " en
+
+        exe   split(a:lines[1], '\t')[0]
+              " 这是个行号
+        norm! ^zvzz
     endf
 
-    fun! s:buffer_lines(query)
-        let linefmt = s:yellow(" %4d ", "LineNr")."\t%s"
-        let fmtexpr = 'printf(linefmt, v:key + 1, v:val)'
+    fun! s:blines_source(query)
+        " 不用加call, 说明不是function
+            " echom s:yellow('any_string','In_BackticK')
+            " 输出 ^[[38;2;0;0;0;48;2;224;224;223maaaa^[[m
+
+        let fmtexpr = 'printf(
+                        \ s:yellow(" %4d ", "LineNr") . "\t%s",
+                        \ v:key + 1,
+                        \ v:val,
+                       \ )'
         let lines = getline(1, '$')
+        " 往后搜
+        " 啊 不行
+        " let lines = getline(g:current_line_for_BLines, '$')
+
         if empty(a:query)
             return map(lines, fmtexpr)
-        end
-        return filter(map(lines, 'v:val =~ a:query ? '.fmtexpr.' : ""'), 'len(v:val)')
+        el
+            return filter(
+                    \ map(
+                        \ lines,
+                        \ 'v:val =~ a:query'
+                            \  '?' . fmtexpr .
+                            \ ' : ""',
+                    \ ),
+                \ 'len(v:val)',
+                \ )
+        endif
     endf
 
+    " call fzf#vim#buffer_lines(<q-args>, <bang>0)
     fun! fzf#vim#buffer_lines(...)
-        let [query, args] = (a:0 && type(a:1) == type('')) ?
-                    \ [a:1, a:000[1:]] : ['', a:000]
+        let [query, args] = (a:0 && type(a:1) == type(''))
+                        \ ? [a:1, a:000[1:]]
+                        \ : ['', a:000]
         return s:fzf('blines',
-        \ {
-        \ 'source':  s:buffer_lines(query),
-        \ 'sink*':   s:function('s:buffer_line_handler'),
-        \ 'options': s:reverse_list(['--no-multi', '--tiebreak=index', '--multi', '--prompt', 'BLines> ', '--ansi', '--extended', '--nth=2..', '--tabstop=1'])
-        \},
-        \ args)
+               \ {
+               \ 'source'  : s:blines_source(query)         ,
+               \ 'sink*'   : function('s:buffer_line_sink') ,
+               \ 'options' : s:reverse_list([
+                   \ '--no-multi',
+                   \ '--tiebreak=index',
+                   \ '--multi',
+                   \ '--prompt',
+                       \ '本文件> ',
+                   \ '--ansi',
+                   \ '--extended',
+                   \ '--nth=2..',
+                   \ '--tabstop=1',
+                  \ ])
+               \},
+             \ args
+           \ )
     endf
 
 
@@ -650,8 +705,10 @@ set cpo&vim
     fun! fzf#vim#command_history(...)
         return s:fzf('history-command', {
         \ 'source':  s:history_source(':'),
-        \ 'sink*':   s:function('s:cmd_history_sink'),
-        \ 'options': '-m --ansi --prompt="Hist:> " --header-lines=1 --expect=ctrl-e --tiebreak=index'}, a:000)
+        \ 'sink*':   function('s:cmd_history_sink'),
+        \ 'options': '--layout=reverse  -m --ansi --prompt="Hist:> " --header-lines=1 --expect=ctrl-e --tiebreak=index'
+        \ },
+        \ a:000)
     endf
 
     fun! s:search_history_sink(lines)
@@ -661,14 +718,20 @@ set cpo&vim
     fun! fzf#vim#search_history(...)
         return s:fzf('history-search', {
         \ 'source':  s:history_source('/'),
-        \ 'sink*':   s:function('s:search_history_sink'),
-        \ 'options': '-m --ansi --prompt="Hist/> " --header-lines=1 --expect=ctrl-e --tiebreak=index'}, a:000)
+        \ 'sink*':   function('s:search_history_sink'),
+        \ 'options': '--layout=reverse -m --ansi --prompt="Hist/> " --header-lines=1 --expect=ctrl-e --tiebreak=index'}, a:000)
     endf
 
     fun! fzf#vim#history(...)
         return s:fzf('history-files', {
         \ 'source':  fzf#vim#_recent_files(),
-        \ 'options': ['-m', '--header-lines', !empty(expand('%')), '--prompt', 'Hist> ']
+        \ 'options': s:reverse_list([
+            \ '-m',
+            \ '--header-lines',
+            \ !empty(expand('%')),
+            \ '--prompt',
+            \ '最近使用> ',
+           \ ])
         \}, a:000)
     endf
 
@@ -698,11 +761,13 @@ set cpo&vim
         if a:args != '?'
             " s:fzf的第一个参数是随意的name?
             " return s:fzf('gfiles', {
-            return s:fzf('smart_files', {
-                          \ 'source'  : 'git ls-files '.a:args.(s:is_win ? '' : ' | uniq'),
-                          \ 'dir'     : g_root,
-                          \ 'options' : '-m --prompt "'..g_root..' > "'
-                      \},
+            return s:fzf('smart_files',
+                  \ {
+                    \ 'source'  : 'git ls-files '.a:args.(s:is_win ? '' : ' | uniq'),
+                    \ 'dir'     : g_root,
+                    "\ \ 'options' : s:reverse_list(['-m', '--prompt "' . g_root . ' > "'])
+                    \ 'options' : '--layout=reverse,  -m --prompt "'..g_root..' > "'
+                   \},
                   \ a:000
                 \ )
         en
@@ -781,7 +846,7 @@ set cpo&vim
                 return
             en
         en
-        let cmd = s:action_for(a:lines[0])
+        let cmd = s:edit_cmd(a:lines[0])
         if !empty(cmd)
             exe     'silent' cmd
         en
@@ -816,7 +881,7 @@ set cpo&vim
                     \ [a:1, a:000[1:]] : ['', a:000]
         return s:fzf('buffers', {
         \ 'source':  map(fzf#vim#_buflisted_sorted(), 'fzf#vim#_format_buffer(v:val)'),
-        \ 'sink*':   s:function('s:bufopen'),
+        \ 'sink*':   function('s:bufopen'),
         \ 'options': ['--no-multi', '-x', '--tiebreak=index', '--header-lines=1', '--ansi', '-d', '\t', '--with-nth', '3..', '-n', '2,1..2', '--prompt', 'Buf> ', '--query', query, '--preview-window', '+{2}-/2']
         \}, args)
     endf
@@ -836,7 +901,7 @@ set cpo&vim
             return
         en
 
-        let cmd = s:action_for(a:lines[0], 'e')
+        let cmd = s:edit_cmd(a:lines[0], 'e')
         let list = map(filter(a:lines[1:], 'len(v:val)'), 's:ag_to_qf(v:val, a:has_column)')
         if empty(list)
             return
@@ -849,7 +914,7 @@ set cpo&vim
             if a:has_column
                 exe     'normal!' first.col.'|'
             en
-            normal! zz
+            norm! zz
         catch
         endtry
 
@@ -981,11 +1046,11 @@ set cpo&vim
                     endf
                     let opts['sink*'] = remove(opts, 'sink')
                     try
-                        let prev_default_command = $FZF_DEFAULT_COMMAND
-                        let $FZF_DEFAULT_COMMAND = a:grep_command
+                        let prev_default_command = $SKIM_DEFAULT_COMMAND
+                        let $SKIM_DEFAULT_COMMAND = a:grep_command
                         return s:fzf(name, opts, a:000)
                     finally
-                        let $FZF_DEFAULT_COMMAND = prev_default_command
+                        let $SKIM_DEFAULT_COMMAND = prev_default_command
                     endtry
                 endf
 
@@ -1014,8 +1079,8 @@ set cpo&vim
         if len(a:lines) < 2
             return
         en
-        normal! m'
-        let cmd = s:action_for(a:lines[0])
+        norm! m'
+        let cmd = s:edit_cmd(a:lines[0])
         if !empty(cmd)
             exe     'silent' cmd '%'
         en
@@ -1025,7 +1090,7 @@ set cpo&vim
             call add(qfl, {'filename': expand('%'), 'lnum': line('.'), 'text': getline('.')})
         endfor
         call s:fill_quickfix(qfl, 'cfirst')
-        normal! zvzz
+        norm! zvzz
     endf
 
     " query, [[tag commands], options]
@@ -1043,7 +1108,7 @@ set cpo&vim
         try
             return s:fzf('btags', {
             \ 'source':  s:btags_source(tag_cmds),
-            \ 'sink*':   s:function('s:btags_sink'),
+            \ 'sink*':   function('s:btags_sink'),
             \ 'options': s:reverse_list(['-m', '-d', '\t', '--with-nth', '1,4..', '-n', '1', '--prompt', 'BTags> ', '--query', a:query, '--preview-window', '+{3}-/2'])}, args)
         catch
             return s:warn(v:exception)
@@ -1055,9 +1120,9 @@ set cpo&vim
         if len(a:lines) < 2
             return
         en
-        normal! m'
+        norm! m'
         let qfl = []
-        let cmd = s:action_for(a:lines[0], 'e')
+        let cmd = s:edit_cmd(a:lines[0], 'e')
         try
             let [magic, &magic, wrapscan, &wrapscan, acd, &acd] = [&magic, 0, &wrapscan, 1, &acd, 0]
             for line in a:lines[1:]
@@ -1080,7 +1145,7 @@ set cpo&vim
             let [&magic, &wrapscan, &acd] = [magic, wrapscan, acd]
         endtry
         call s:fill_quickfix(qfl, 'clast')
-        normal! zvzz
+        norm! zvzz
     endf
 
     fun! fzf#vim#tags(query, ...)
@@ -1117,7 +1182,7 @@ set cpo&vim
 
         return s:fzf('tags', {
         \ 'source':  'perl '.skim#shellescape(s:bin.tags).' '.join(map(tagfiles, 'skim#shellescape(fnamemodify(v:val, ":p"))')),
-        \ 'sink*':   s:function('s:tags_sink'),
+        \ 'sink*':   function('s:tags_sink'),
         \ 'options': extend(opts, ['--nth', '1..2', '-m', '--tiebreak=begin', '--prompt', 'Tags> ', '--query', a:query])}, a:000)
     endf
 
@@ -1142,7 +1207,7 @@ set cpo&vim
         return s:fzf('snippets', {
         \ 'source':  colored,
         \ 'options': '--ansi --tiebreak=index -m -n 1 -d "\t"',
-        \ 'sink':    s:function('s:inject_snippet')}, a:000)
+        \ 'sink':    function('s:inject_snippet')}, a:000)
     endf
 
 " Commands
@@ -1207,7 +1272,7 @@ set cpo&vim
                     \ 'commands',
                     \{
                         \ 'source':  extend(extend(list[0:0], map(list[1:], 's:format_cmd(v:val)')), s:excmds()),
-                        \ 'sink*':   s:function('s:command_sink'),
+                        \ 'sink*':   function('s:command_sink'),
                         \ 'options': '--ansi --expect '.get(g:, 'fzf_commands_expect', 'ctrl-x').
                         \            ' --tiebreak=index --header-lines 1 --extended --prompt "Commands> " -n2,3,2..3 -d'.s:nbs
                     \},
@@ -1224,7 +1289,7 @@ set cpo&vim
         if len(a:lines) < 2
             return
         en
-        let cmd = s:action_for(a:lines[0])
+        let cmd = s:edit_cmd(a:lines[0])
         if !empty(cmd)
             exe     'silent' cmd
         en
@@ -1238,7 +1303,7 @@ set cpo&vim
         let list = split(cout, "\n")
         return s:fzf('marks', {
         \ 'source':  extend(list[0:0], map(list[1:], 's:format_mark(v:val)')),
-        \ 'sink*':   s:function('s:mark_sink'),
+        \ 'sink*':   function('s:mark_sink'),
         \ 'options': '-m --extended --ansi --tiebreak=index --header-lines 1 --tiebreak=begin --prompt "Marks> "'}, a:000)
     endf
 
@@ -1264,25 +1329,25 @@ set cpo&vim
         if exists('s:helptags_script')  | silent! call delete(s:helptags_script)  | en
 
         let s:helptags_script = tempname()
-        echom "s:helptags_script 是: "   s:helptags_script
+            " 该文件里是   /(.*?):(.*?)\t(.*?)\t/; printf(qq([38;2;128;112;48m%-40s[m\t%s\t%s\n), $2, $3, $1)
 
-        " let a_list =  ['/('
-        "         \   . (s:is_win ? '^[A-Z]:[\/\\].*?[^:]' : '.*?')
-        "         \ . ')
-        "             \ :(.*?)\t(.*?)\t/;
-        "             \ printf(qq('
-        "                         \ . s:green('%-40s', 'Label')
-        "                         \ . '\t%s\t%s\n'
-        "                   \ . '),
-        "                     \ $2,
-        "                     \ $3,
-        "                     \ $1
-        "                   \ )'
-        "         \ ],
+        " let search_regex =  ['/('
+            "         \   . (s:is_win ? '^[A-Z]:[\/\\].*?[^:]' : '.*?')
+            "         \ . ')
+            "             \ :(.*?)\t(.*?)\t/;
+            "             \ printf(qq('
+            "                         \ . s:green('%-40s', 'Label')
+            "                         \ . '\t%s\t%s\n'
+            "                   \ . '),
+            "                     \ $2,
+            "                     \ $3,
+            "                     \ $1
+            "                   \ )'
+            "         \ ],
 
-        let a_list =   ['/('.(s:is_win ? '^[A-Z]:[\/\\].*?[^:]' : '.*?').'):(.*?)\t(.*?)\t/; printf(qq('.s:green('%-40s', 'Label').'\t%s\t%s\n), $2, $3, $1)']
+        let search_regex =   ['/('.(s:is_win ? '^[A-Z]:[\/\\].*?[^:]' : '.*?').'):(.*?)\t(.*?)\t/; printf(qq('.s:green('%-40s', 'Label').'\t%s\t%s\n), $2, $3, $1)']
 
-        call writefile(a_list , s:helptags_script)
+        call writefile(search_regex , s:helptags_script)
 
 
         let shell_cmd = 'grep -H ".*" '
@@ -1293,14 +1358,21 @@ set cpo&vim
         " echom "shell_cmd 是: "   shell_cmd
 
         return s:fzf(
-            \ 'helptags',
-             \ {
-               \ 'source'  : shell_cmd,
-               \ 'sink'    : s:function('s:helptag_sink'),
-               \ 'options' : ['--ansi', '-m', '--tiebreak=begin', '--with-nth', '..-2'],
-             \ },
-             \ a:000,
-           \ )
+             \ 'helptags',
+              \ {
+                \ 'source'  : shell_cmd,
+                \ 'sink'    : function('s:helptag_sink'),
+                \ 'options' : [
+                            \ '--layout=reverse-list' ,
+                            \ '--ansi'                ,
+                            \ '-m'                    ,
+                            \ '--tiebreak=begin'      ,
+                            \ '--with-nth'            ,
+                            \ '..-2'                  ,
+                            \ ],
+              \ },
+              \ a:000,
+            \ )
     endf
 
 " File types
@@ -1341,7 +1413,7 @@ set cpo&vim
         endfor
         return s:fzf('windows', {
         \ 'source':  extend(['Tab Win    Name'], lines),
-        \ 'sink':    s:function('s:windows_sink'),
+        \ 'sink':    function('s:windows_sink'),
         \ 'options': '-m --ansi --tiebreak=begin --header-lines=1'}, a:000)
     endf
 
@@ -1365,7 +1437,7 @@ set cpo&vim
         end
 
         let diff = a:lines[0] == 'ctrl-d'
-        let cmd = s:action_for(a:lines[0], 'e')
+        let cmd = s:edit_cmd(a:lines[0], 'e')
         let buf = bufnr('')
         for idx in range(1, len(a:lines) - 1)
             let sha = matchstr(a:lines[idx], pat)
@@ -1408,10 +1480,10 @@ set cpo&vim
         en
 
         let command = a:buffer_local ? 'BCommits' : 'Commits'
-        let expect_keys = join(keys(get(g:, 'skim_action', s:default_action)), ',')
+        let expect_keys = join(keys(get(g:, 'sk_editCmd', s:key2editCmd)), ',')
         let options = {
         \ 'source':  source,
-        \ 'sink*':   s:function('s:commits_sink'),
+        \ 'sink*':   function('s:commits_sink'),
         \ 'options': s:reverse_list(['--ansi', '--multi', '--tiebreak=index',
         \   '--inline-info', '--prompt', command.'> ', '--bind=ctrl-s:toggle-sort',
         \   '--header', ':: Press '.s:magenta('CTRL-S', 'Special').' to toggle sort, '.s:magenta('CTRL-Y', 'Special').' to yank commit hashes',
@@ -1428,7 +1500,11 @@ set cpo&vim
             \ ['--preview', 'echo {} | grep -o "[a-f0-9]\{7,\}" | head -1 | xargs git show --format=format: --color=always | head -1000'])
         en
 
-        return s:fzf(a:buffer_local ? 'bcommits' : 'commits', options, a:args)
+        return s:fzf(
+            \ a:buffer_local ? 'bcommits' : 'commits',
+            \ options,
+            \ a:args,
+           \ )
     endf
 
     fun! fzf#vim#commits(...)
@@ -1497,10 +1573,13 @@ set cpo&vim
         let sorted  = sort(aligned)
         let colored = map(sorted, 's:highlight_keys(v:val)')
         let pcolor  = a:mode == 'x' ? 9 : a:mode == 'o' ? 10 : 12
-        return s:fzf('maps', {
+        return s:fzf('maps',
+        \ {
         \ 'source':  colored,
-        \ 'sink':    s:function('s:key_sink'),
-        \ 'options': '--prompt "Maps ('.a:mode.')> " --ansi --no-hscroll --nth 1,.. --color prompt:'.pcolor}, a:000)
+        \ 'sink':    function('s:key_sink'),
+        \ 'options': '--prompt "Maps ('.a:mode.')> " --ansi --no-hscroll --nth 1,.. --color prompt:' . pcolor
+        \ },
+        \ a:000)
     endf
 
 " fzf#vim#complete - completion helper
@@ -1516,11 +1595,11 @@ set cpo&vim
             \ opts,
             \ ['-m', '-q', s:query],
            \ )
-        let opts['sink*'] = s:function('s:complete_insert')
+        let opts['sink*'] = function('s:complete_insert')
         let s:reducer = s:pluck(
             \ opts,
             \ 'reducer',
-            \ s:function('s:first_line'),
+            \ function('s:first_line'),
            \ )
         call skim#run(opts)
     endf

@@ -312,15 +312,18 @@ The following table summarizes the available options.
 | -------------------------- | ------------- | ----------------------------------------------------------------      |
 | `source`                   | string        | External command to generate input to fzf (e.g. `find .`)             |
 | `source`                   | list          | Vim list as input to fzf                                              |
+
 | `sink`                     | string        | Vim command to handle the selected item (e.g. `e`, `tabe`)            |
-| `sink`                     | funcref       | Reference to function to process each selected item                   |
+|                            | funcref       | Reference to function to process each selected item                   |
+
 | `sinklist` (or `sink*`)    | funcref       | Similar to `sink`, but takes the list of output lines at once         |
 | `options`                  | string/list   | Options to fzf                                                        |
 | `dir`                      | string        | Working directory                                                     |
+
 | `up`/`down`/`left`/`right` | number/string | (Layout) Window position and size (e.g. `20`, `50%`)                  |
 | `tmux`                     | string        | (Layout) fzf-tmux options (e.g. `-p90%,60%`)                          |
 | `window` (Vim 8 / Neovim)  | string        | (Layout) Command to open fzf window (e.g. `vertical aboveleft 30new`) |
-| `window` (Vim 8 / Neovim)  | dict          | (Layout) Popup window settings (e.g. `{'width': 0.9, 'height': 0.6}`) |
+|                            | dict          | (Layout) Popup window settings (e.g. `{'width': 0.9, 'height': 0.6}`) |
 
 `options` entry can be either a string or a list. For simple cases, string
 should suffice, but prefer to use list type to avoid escaping issues.

@@ -2,6 +2,14 @@ https://github.com/junegunn/fzf/blob/master/README-VIM.md#fzfrun
 fzf# 替换成了skim#
 FZF 替换成了SK
 
+这是不用skim.vim插件, 只有skim目录下的这个文件的使用说明?
+    /data2/wf2/leo_tools/skim/plugin/skim.vim
+
+
+- If you're looking for more such commands,
+        check out [skim.vim] project.
+
+
 SK Vim integration
 ===================
 
@@ -53,7 +61,8 @@ Summary
 
 The Vim plugin of fzf provides
     two core functions,
-    and `:SK` command which  is the basic file selector command built on top of them.
+    and `:SK` command which
+        is the basic file selector command built on top of them.
 
 1. **`skim#run([spec dict])`**
     - Starts fzf inside Vim with the given spec
@@ -63,11 +72,14 @@ The Vim plugin of fzf provides
     - Takes a spec for `skim#run` and returns an extended version of it with
       additional options for addressing global preferences (`g:fzf_xxx`)
         - `:echo skim#wrap({'source': 'ls'})`
+
     - We usually *wrap* a spec with `skim#wrap` before passing it to `skim#run`
         - `:call skim#run(skim#wrap({'source': 'ls'}))`
+
 3. **`:SK [fzf_options string] [path string]`**
         - Basic fuzzy file selector
-        - A reference implementation for those who don't want to write VimScript  to implement custom commands
+        - A reference implementation for those who don't want to write VimScript
+          to implement custom commands
         - If you're looking for more such commands,
              check out [fzf.vim](https://github.com/junegunn/fzf.vim) project.
 
@@ -80,13 +92,13 @@ but it would be easier to understand the whole if we start off with `:SK` comman
 
 ```vim
 " Look for files under current directory
-:SK
+    :SK
 
 " Look for files under your home directory
-:SK ~
+    :SK ~
 
 " With fzf command-line options
-:SK --reverse --info=inline /tmp
+    :SK --reverse --info=inline /tmp
 
 " Bang version starts fzf in fullscreen mode
 :SK!
@@ -100,17 +112,21 @@ in new tabs,
 in horizontal splits,
 or in vertical splits respectively.
 
-Note that the environment variables `SK_DEFAULT_COMMAND` and
+Note that the environment variables
+`SK_DEFAULT_COMMAND` and
 `SK_DEFAULT_OPTS` also apply here.
 
 ### Configuration
 
 - `g:fzf_action`
     - Customizable extra key bindings for opening selected files in different ways
+
 - `g:fzf_layout`
     - Determines the size and position of fzf window
+
 - `g:fzf_colors`
     - Customizes fzf colors to match the current color scheme
+
 - `g:fzf_history_dir`
     - Enables history feature
 
@@ -138,22 +154,22 @@ let g:fzf_action = {
     \ 'ctrl-v': 'vsplit' }
 
 " Default fzf layout
-" - Popup window (center of the screen)
-let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6 } }
+    " - Popup window (center of the screen)
+    let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6 } }
 
-" - Popup window (center of the current window)
-let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6, 'relative': v:true } }
+    " - Popup window (center of the current window)
+    let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6, 'relative': v:true } }
 
-" - Popup window (anchored to the bottom of the current window)
-let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6, 'relative': v:true, 'yoffset': 1.0 } }
+    " - Popup window (anchored to the bottom of the current window)
+    let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6, 'relative': v:true, 'yoffset': 1.0 } }
 
-" - down / up / left / right
-let g:fzf_layout = { 'down': '40%' }
+    " - down / up / left / right
+    let g:fzf_layout = { 'down': '40%' }
 
-" - Window using a Vim command
-let g:fzf_layout = { 'window': 'enew' }
-let g:fzf_layout = { 'window': '-tabnew' }
-let g:fzf_layout = { 'window': '10new' }
+    " - Window using a Vim command
+        let g:fzf_layout = { 'window': 'enew' }
+        let g:fzf_layout = { 'window': '-tabnew' }
+        let g:fzf_layout = { 'window': '10new' }
 
 " Customize fzf colors to match your color scheme
 " - skim#wrap translates this to a set of `--color` options
@@ -233,25 +249,29 @@ the result of `skim#wrap()` function like so:
 `skim#run`
 ---------
 
-`skim#run()` function is the core of Vim integration. It takes a single
-dictionary argument, *a spec*, and starts fzf process accordingly. At the very
-least, specify `sink` option to tell what it should do with the selected
-entry.
+`skim#run()` function is the core of Vim integration.
+It takes a single
+dictionary argument, *a spec*, and starts fzf process accordingly.
+At the very
+least, specify `sink` option to
+tell what it should do with the selected  entry.
 
-```vim
-call skim#run({'sink': 'e'})
+    call skim#run({'sink': 'e'})
 ```
 
-We haven't specified the `source`, so this is equivalent to starting fzf on
-command line without standard input pipe; fzf will use find command (or
-`$SK_DEFAULT_COMMAND` if defined) to list the files under the current
-directory. When you select one, it will open it with the sink, `:e` command.
-If you want to open it in a new tab, you can pass `:tabedit` command instead
-as the sink.
+We haven't specified the `source`,
+so this is equivalent to starting fzf on  command line
+without standard input pipe;
+fzf will use find command (or  `$SK_DEFAULT_COMMAND` if defined)
+to list the files under the current  directory.
+When you select one,
+it will open it with the sink, `:e` command.
+If you want to open it in a new tab,
+you can pass `:tabedit` command instead  as the sink.
 
 ```vim
 call skim#run({'sink': 'tabedit'})
-```
+    ```
 
 Instead of using the default find command, you can use any shell command as
 the source. The following example will list the files managed by git. It's

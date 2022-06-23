@@ -179,23 +179,57 @@ set cpo&vim
         endfor
         return a:opts
     endf
+    let s:fzf_default_optS = "--bind=ctrl-d:page-down,ctrl-u:page-up,ctrl-y:yank,tab:down,btab:up --inline-info  --height 50%"
+    " let s:fzf_default_optS = "--bind=ctrl-d:page-down,ctrl-u:page-up,ctrl-y:yank,tab:down,btab:up --inline-info --reverse --height 50%"
+    " # export FZF_DEFAULT_COMMAND='ag -U --hidden --follow --nogroup --nocolor -g ""'
 
     fun! s:reverse_list(opts)
-        let tokens = map(split($FZF_DEFAULT_OPTS, '[^a-z-]'), 'substitute(v:val, "^--", "", "")')
+        let tokens = map(
+                   \ split(s:fzf_default_optS, '[^a-z-]'),
+                     "\ split($FZF_DEFAULT_OPTS, '[^a-z-]'),
+                   \ 'substitute(v:val, "^--", "", "")',
+                  \ )
+
+        " echom "tokens 是: "   tokens
+                    " [
+                    " \ 'bind',
+                    " \ 'ctrl-d',
+                    " \ 'page-down',
+                    " \ 'ctrl-u',
+                    " \ 'page-up',
+                    " \ 'ctrl-y',
+                    " \ 'yank',
+                    " \ 'tab',
+                    " \ 'down',
+                    " \ 'btab',
+                    " \ 'up',
+                    " \ 'inline-info',
+                    " \ 'reverse',
+                    " \ 'height',
+                    " \ '',
+                    " \ '',
+                    " \ '',
+                    " \ ]
+
         if index(tokens, 'reverse') < 0
             return extend(['--layout=reverse-list'], a:opts)
         en
+
         return a:opts
     endf
 
     fun! s:wrap(name, opts, bang)
-        " skim#wrap does not append --expect if sink or sink* is found
         let opts = copy(a:opts)
         let options = ''
         if has_key(opts, 'options')
-            let options = type(opts.options) == s:TYPE.list ? join(opts.options) : opts.options
+            let options = type(opts.options) == s:TYPE.list
+                    \ ? join(opts.options)
+                    \ : opts.options
         en
-        if options !~ '--expect' && has_key(opts, 'sink*')
+        " if sink or sink* is found
+            " skim#wrap does not append  `--expect`
+        if options !~ '--expect'
+     \ && has_key(opts, 'sink*')
             let Sink = remove(opts, 'sink*')
             let wrapped = skim#wrap(a:name, opts, a:bang)
             let wrapped['sink*'] = Sink
@@ -301,15 +335,17 @@ set cpo&vim
             throw 'invalid number of arguments'
         en
 
-        let eopts  = has_key(extra, 'options') ? remove(extra, 'options') : ''
+        let eopts  = has_key(extra, 'options')
+                    \ ? remove(extra, 'options')
+                    \ : ''
         let merged_opts = extend(copy(a:opts), extra)
         call s:merge_opts(merged_opts, eopts)
         return skim#run( s:wrap(
-                                \ a:name,
-                                \ merged_opts,
-                                \ bang,
-                               \ )
-                       \)
+                         \ a:name,
+                         \ merged_opts,
+                         \ bang,
+                         \ )
+                 \)
     endf
 
     let s:default_action = {
@@ -318,9 +354,17 @@ set cpo&vim
         \ 'ctrl-v': 'vsplit' }
 
     fun! s:action_for(key, ...)
-        let default = a:0 ? a:1 : ''
-        let Cmd = get(get(g:, 'skim_action', s:default_action), a:key, default)
-        return type(Cmd) == s:TYPE.string ? Cmd : default
+        let default = a:0
+                    \ ? a:1
+                    \ : ''
+        let Cmd = get(
+                  \ get(g:, 'skim_action', s:default_action),
+                  \ a:key,
+                  \ default,
+                 \ )
+        return  type(Cmd) == s:TYPE.string
+          \ ? Cmd
+          \ : default
     endf
 
     fun! s:open(cmd, target)
@@ -525,11 +569,13 @@ set cpo&vim
     fun! fzf#vim#buffer_lines(...)
         let [query, args] = (a:0 && type(a:1) == type('')) ?
                     \ [a:1, a:000[1:]] : ['', a:000]
-        return s:fzf('blines', {
+        return s:fzf('blines',
+        \ {
         \ 'source':  s:buffer_lines(query),
         \ 'sink*':   s:function('s:buffer_line_handler'),
         \ 'options': s:reverse_list(['--no-multi', '--tiebreak=index', '--multi', '--prompt', 'BLines> ', '--ansi', '--extended', '--nth=2..', '--tabstop=1'])
-        \}, args)
+        \},
+        \ args)
     endf
 
 
@@ -1201,28 +1247,60 @@ set cpo&vim
         let [tag, file, path] = split(a:line, "\t")[0:2]
         let rtp = fnamemodify(path, ':p:h:h')
         if stridx(&rtp, rtp) < 0
-            exe     'set rtp+='.s:escape(rtp)
+            exe 'set rtp+=' . s:escape(rtp)
         en
-        exe     'help' tag
+        exe  'silent! helptags ALL | -tab help' tag
+        " exe  'help' tag
     endf
 
     fun! fzf#vim#helptags(...)
-        if !executable('grep') || !executable('perl')
-            return s:warn('Helptags command requires grep and perl')
-        en
-        let sorted = sort(split(globpath(&runtimepath, 'doc/tags', 1), '\n'))
-        let tags = exists('*uniq') ? uniq(sorted) : fzf#vim#_uniq(sorted)
+        if !executable('grep') || !executable('perl')  | return s:warn('Helptags command requires grep and perl')  | en
 
-        if exists('s:helptags_script')
-            silent! call delete(s:helptags_script)
-        en
+        let sorted = sort(split(globpath(&runtimepath, 'doc/tags', 1), '\n'))
+        let tags = exists('*uniq')
+                \ ? uniq(sorted)
+                \ : fzf#vim#_uniq(sorted)
+
+        if exists('s:helptags_script')  | silent! call delete(s:helptags_script)  | en
+
         let s:helptags_script = tempname()
-        call writefile(['/('.(s:is_win ? '^[A-Z]:[\/\\].*?[^:]' : '.*?').'):(.*?)\t(.*?)\t/; printf(qq('.s:green('%-40s', 'Label').'\t%s\t%s\n), $2, $3, $1)'], s:helptags_script)
-        return s:fzf('helptags', {
-        \ 'source':  'grep -H ".*" '.join(map(tags, 'skim#shellescape(v:val)')).
-            \ ' | perl -n '.skim#shellescape(s:helptags_script).' | sort',
-        \ 'sink':    s:function('s:helptag_sink'),
-        \ 'options': ['--ansi', '-m', '--tiebreak=begin', '--with-nth', '..-2']}, a:000)
+        echom "s:helptags_script 是: "   s:helptags_script
+
+        " let a_list =  ['/('
+        "         \   . (s:is_win ? '^[A-Z]:[\/\\].*?[^:]' : '.*?')
+        "         \ . ')
+        "             \ :(.*?)\t(.*?)\t/;
+        "             \ printf(qq('
+        "                         \ . s:green('%-40s', 'Label')
+        "                         \ . '\t%s\t%s\n'
+        "                   \ . '),
+        "                     \ $2,
+        "                     \ $3,
+        "                     \ $1
+        "                   \ )'
+        "         \ ],
+
+        let a_list =   ['/('.(s:is_win ? '^[A-Z]:[\/\\].*?[^:]' : '.*?').'):(.*?)\t(.*?)\t/; printf(qq('.s:green('%-40s', 'Label').'\t%s\t%s\n), $2, $3, $1)']
+
+        call writefile(a_list , s:helptags_script)
+
+
+        let shell_cmd = 'grep -H ".*" '
+                 \ . join(  map(tags, 'skim#shellescape(v:val)')  )
+                 \ . ' | perl -n ' . skim#shellescape(s:helptags_script)
+               \   . ' | sort'
+
+        " echom "shell_cmd 是: "   shell_cmd
+
+        return s:fzf(
+            \ 'helptags',
+             \ {
+               \ 'source'  : shell_cmd,
+               \ 'sink'    : s:function('s:helptag_sink'),
+               \ 'options' : ['--ansi', '-m', '--tiebreak=begin', '--with-nth', '..-2'],
+             \ },
+             \ a:000,
+           \ )
     endf
 
 " File types

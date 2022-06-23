@@ -56,26 +56,26 @@ fun! s:p(bang, ...)
 endf
 
 call s:defs([
-    \'com!      -bang -nargs=? -complete=dir Files       call fzf#vim#files(<q-args>, s:p(<bang>0), <bang>0)',
-    \'com!      -bang -nargs=? GFiles                    call fzf#vim#gitfiles(<q-args>, <q-args> == "?" ? {} : s:p(<bang>0), <bang>0)',
-    \'com! -bar -bang -nargs=? -complete=buffer Buffers  call fzf#vim#buffers(<q-args>, s:p(<bang>0, { "placeholder": "{1}" }), <bang>0)',
-    \'com!      -bang -nargs=* Lines                     call fzf#vim#lines(<q-args>, <bang>0)',
-    \'com!      -bang -nargs=* BLines                    call fzf#vim#buffer_lines(<q-args>, <bang>0)',
-    \'com! -bar -bang Colors                             call fzf#vim#colors(<bang>0)',
-    \'com!      -bang -nargs=+ -complete=dir Locate      call fzf#vim#locate(<q-args>, s:p(<bang>0), <bang>0)',
-    \'com!      -bang -nargs=* Rg                        call fzf#vim#rg_interactive(<q-args>, s:p(<bang>0), <bang>0)',
-    \'com!      -bang -nargs=* Tags                      call fzf#vim#tags(<q-args>, <bang>0)',
-    \'com!      -bang -nargs=* BTags                     call fzf#vim#buffer_tags(<q-args>, s:p(<bang>0, { "placeholder": "{2}:{3}" }), <bang>0)',
-    \'com! -bar -bang Snippets                           call fzf#vim#snippets(<bang>0)',
-    \'com! -bar -bang Commands                           call fzf#vim#commands(<bang>0)',
-    \'com! -bar -bang Marks                              call fzf#vim#marks(<bang>0)',
-    \'com! -bar -bang Helptags                           call fzf#vim#helptags(<bang>0)',
-    \'com! -bar -bang Windows                            call fzf#vim#windows(<bang>0)',
-    \'com! -bar -bang Commits                            call fzf#vim#commits(<bang>0)',
-    \'com! -bar -bang BCommits                           call fzf#vim#buffer_commits(<bang>0)',
-    \'com! -bar -bang Maps                               call fzf#vim#maps("n", <bang>0)',
-    \'com! -bar -bang Filetypes                          call fzf#vim#filetypes(<bang>0)',
-    \'com!      -bang -nargs=* History                   call s:history(<q-args>, s:p(<bang>0), <bang>0)'])
+    \  'com!      -bang -nargs=? -complete=dir Files       call fzf#vim#files(<q-args>, s:p(<bang>0), <bang>0)',
+    \  'com!      -bang -nargs=? GFiles                    call fzf#vim#gitfiles(<q-args>, <q-args> == "?" ? {} : s:p(<bang>0), <bang>0)',
+    \  'com! -bar -bang -nargs=? -complete=buffer Buffers  call fzf#vim#buffers(<q-args>, s:p(<bang>0, { "placeholder": "{1}" }), <bang>0)',
+    \  'com!      -bang -nargs=* Lines                     call fzf#vim#lines(<q-args>, <bang>0)',
+    \  'com!      -bang -nargs=* BLines                    call fzf#vim#buffer_lines(<q-args>, <bang>0)',
+    \  'com! -bar -bang Colors                             call fzf#vim#colors(<bang>0)',
+    \  'com!      -bang -nargs=+ -complete=dir Locate      call fzf#vim#locate(<q-args>, s:p(<bang>0), <bang>0)',
+    \  'com!      -bang -nargs=* Rg                        call fzf#vim#rg_interactive(<q-args>, s:p(<bang>0), <bang>0)',
+    \  'com!      -bang -nargs=* Tags                      call fzf#vim#tags(<q-args>, <bang>0)',
+    \  'com!      -bang -nargs=* BTags                     call fzf#vim#buffer_tags(<q-args>, s:p(<bang>0, { "placeholder": "{2}:{3}" }), <bang>0)',
+    \  'com! -bar -bang Snippets                           call fzf#vim#snippets(<bang>0)',
+    \  'com! -bar -bang Commands                           call fzf#vim#commands(<bang>0)',
+    \  'com! -bar -bang Marks                              call fzf#vim#marks(<bang>0)',
+    \  'com! -bar -bang Helptags                           call fzf#vim#helptags(<bang>0)',
+    \  'com! -bar -bang Windows                            call fzf#vim#windows(<bang>0)',
+    \  'com! -bar -bang Commits                            call fzf#vim#commits(<bang>0)',
+    \  'com! -bar -bang BCommits                           call fzf#vim#buffer_commits(<bang>0)',
+    \  'com! -bar -bang Maps                               call fzf#vim#maps("n", <bang>0)',
+    \  'com! -bar -bang Filetypes                          call fzf#vim#filetypes(<bang>0)',
+    \  'com!      -bang -nargs=* History                   call s:history(<q-args>, s:p(<bang>0), <bang>0)'])
 
 fun! s:history(arg, extra, bang)
     let bang = a:bang || a:arg[len(a:arg)-1] == '!'

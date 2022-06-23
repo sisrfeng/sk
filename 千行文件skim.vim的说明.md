@@ -118,23 +118,23 @@ Note that the environment variables
 
 ### Configuration
 
-- `g:fzf_action`
+- `g:skim_action`
     - Customizable extra key bindings for opening selected files in different ways
 
-- `g:fzf_layout`
-    - Determines the size and position of fzf window
+- `g:skim_layout`
+    - Determines the size and position of skim window
 
-- `g:fzf_colors`
-    - Customizes fzf colors to match the current color scheme
+- `g:skim_colors`
+    - Customizes skim colors to match the current color scheme
 
-- `g:fzf_history_dir`
+- `g:skim_history_dir`
     - Enables history feature
 
 #### Examples
 
 ```vim
 " This is the default extra key bindings
-let g:fzf_action = {
+let g:skim_action = {
   \ 'ctrl-t': 'tab split',
   \ 'ctrl-x': 'split',
   \ 'ctrl-v': 'vsplit' }
@@ -147,33 +147,33 @@ function! s:build_quickfix_list(lines)
     cc
 endfunction
 
-let g:fzf_action = {
+let g:skim_action = {
     \ 'ctrl-q': function('s:build_quickfix_list'),
     \ 'ctrl-t': 'tab split',
     \ 'ctrl-x': 'split',
     \ 'ctrl-v': 'vsplit' }
 
-" Default fzf layout
+" Default skim layout
     " - Popup window (center of the screen)
-    let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6 } }
+    let g:skim_layout = { 'window': { 'width': 0.9, 'height': 0.6 } }
 
     " - Popup window (center of the current window)
-    let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6, 'relative': v:true } }
+    let g:skim_layout = { 'window': { 'width': 0.9, 'height': 0.6, 'relative': v:true } }
 
     " - Popup window (anchored to the bottom of the current window)
-    let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6, 'relative': v:true, 'yoffset': 1.0 } }
+    let g:skim_layout = { 'window': { 'width': 0.9, 'height': 0.6, 'relative': v:true, 'yoffset': 1.0 } }
 
     " - down / up / left / right
-    let g:fzf_layout = { 'down': '40%' }
+    let g:skim_layout = { 'down': '40%' }
 
     " - Window using a Vim command
-        let g:fzf_layout = { 'window': 'enew' }
-        let g:fzf_layout = { 'window': '-tabnew' }
-        let g:fzf_layout = { 'window': '10new' }
+        let g:skim_layout = { 'window': 'enew' }
+        let g:skim_layout = { 'window': '-tabnew' }
+        let g:skim_layout = { 'window': '10new' }
 
-" Customize fzf colors to match your color scheme
+" Customize skim colors to match your color scheme
 " - skim#wrap translates this to a set of `--color` options
-let g:fzf_colors =
+let g:skim_colors =
 \ { 'fg':      ['fg', 'Normal'],
   \ 'bg':      ['bg', 'Normal'],
   \ 'hl':      ['fg', 'Comment'],
@@ -192,17 +192,17 @@ let g:fzf_colors =
 " - History files will be stored in the specified directory
 " - When set, CTRL-N and CTRL-P will be bound to 'next-history' and
 "   'previous-history' instead of 'down' and 'up'.
-let g:fzf_history_dir = '~/.local/share/fzf-history'
+let g:skim_history_dir = '~/.local/share/skim-history'
 ```
 
-##### Explanation of `g:fzf_colors`
+##### Explanation of `g:skim_colors`
 
-`g:fzf_colors` is a dictionary mapping fzf elements to a color specification
+`g:skim_colors` is a dictionary mapping skim elements to a color specification
 list:
 
     element: [ component, group1 [, group2, ...] ]
 
-- `element` is an fzf element to apply a color to:
+- `element` is an skim element to apply a color to:
 
   | Element                     | Description                                           |
   | ---                         | ---                                                   |
@@ -251,7 +251,7 @@ the result of `skim#wrap()` function like so:
 
 `skim#run()` function is the core of Vim integration.
 It takes a single
-dictionary argument, *a spec*, and starts fzf process accordingly.
+dictionary argument, *a spec*, and starts skim process accordingly.
 At the very
 least, specify `sink` option to
 tell what it should do with the selected  entry.
@@ -260,9 +260,9 @@ tell what it should do with the selected  entry.
 ```
 
 We haven't specified the `source`,
-so this is equivalent to starting fzf on  command line
+so this is equivalent to starting skim on  command line
 without standard input pipe;
-fzf will use find command (or  `$SK_DEFAULT_COMMAND` if defined)
+skim will use find command (or  `$SK_DEFAULT_COMMAND` if defined)
 to list the files under the current  directory.
 When you select one,
 it will open it with the sink, `:e` command.
@@ -275,19 +275,19 @@ call skim#run({'sink': 'tabedit'})
 
 Instead of using the default find command, you can use any shell command as
 the source. The following example will list the files managed by git. It's
-equivalent to running `git ls-files | fzf` on shell.
+equivalent to running `git ls-files | skim` on shell.
 
 ```vim
 call skim#run({'source': 'git ls-files', 'sink': 'e'})
 ```
 
-fzf options can be specified as `options` entry in spec dictionary.
+skim options can be specified as `options` entry in spec dictionary.
 
 ```vim
 call skim#run({'sink': 'tabedit', 'options': '--multi --reverse'})
 ```
 
-You can also pass a layout option if you don't want fzf window to take up the
+You can also pass a layout option if you don't want skim window to take up the
 entire screen.
 
 ```vim
@@ -310,19 +310,19 @@ The following table summarizes the available options.
 
 | Option name                | Type          | Description                                                           |
 | -------------------------- | ------------- | ----------------------------------------------------------------      |
-| `source`                   | string        | External command to generate input to fzf (e.g. `find .`)             |
-| `source`                   | list          | Vim list as input to fzf                                              |
+| `source`                   | string        | External command to generate input to skim (e.g. `find .`)             |
+| `source`                   | list          | Vim list as input to skim                                              |
 
 | `sink`                     | string        | Vim command to handle the selected item (e.g. `e`, `tabe`)            |
 |                            | funcref       | Reference to function to process each selected item                   |
 
 | `sinklist` (or `sink*`)    | funcref       | Similar to `sink`, but takes the list of output lines at once         |
-| `options`                  | string/list   | Options to fzf                                                        |
+| `options`                  | string/list   | Options to skim                                                        |
 | `dir`                      | string        | Working directory                                                     |
 
 | `up`/`down`/`left`/`right` | number/string | (Layout) Window position and size (e.g. `20`, `50%`)                  |
-| `tmux`                     | string        | (Layout) fzf-tmux options (e.g. `-p90%,60%`)                          |
-| `window` (Vim 8 / Neovim)  | string        | (Layout) Command to open fzf window (e.g. `vertical aboveleft 30new`) |
+| `tmux`                     | string        | (Layout) skim-tmux options (e.g. `-p90%,60%`)                          |
+| `window` (Vim 8 / Neovim)  | string        | (Layout) Command to open skim window (e.g. `vertical aboveleft 30new`) |
 |                            | dict          | (Layout) Popup window settings (e.g. `{'width': 0.9, 'height': 0.6}`) |
 
 `options` entry can be either a string or a list. For simple cases, string
@@ -333,7 +333,7 @@ call skim#run({'options': '--reverse --prompt "C:\\Program Files\\"'})
 call skim#run({'options': ['--reverse', '--prompt', 'C:\Program Files\']})
 ```
 
-When `window` entry is a dictionary, fzf will start in a popup window. The
+When `window` entry is a dictionary, skim will start in a popup window. The
 following options are allowed:
 
 - Required:
@@ -351,8 +351,8 @@ following options are allowed:
 
 We have seen that several aspects of `:SK` command can be configured with
 a set of global option variables; different ways to open files
-(`g:fzf_action`), window position and size (`g:fzf_layout`), color palette
-(`g:fzf_colors`), etc.
+(`g:skim_action`), window position and size (`g:skim_layout`), color palette
+(`g:skim_colors`), etc.
 
 So how can we make our custom `skim#run` calls also respect those variables?
 Simply by *"wrapping"* the spec dictionary with `skim#wrap` before passing it
@@ -361,7 +361,7 @@ to `skim#run`.
 - **`skim#wrap([name string], [spec dict], [fullscreen bool]) -> (dict)`**
     - All arguments are optional. Usually we only need to pass a spec dictionary.
     - `name` is for managing history files. It is ignored if
-      `g:fzf_history_dir` is not defined.
+      `g:skim_history_dir` is not defined.
     - `fullscreen` can be either `0` or `1` (default: 0).
 
 `skim#wrap` takes a spec and returns an extended version of it (also
@@ -379,7 +379,7 @@ call skim#run(skim#wrap({'source': 'ls'}))
 ```
 
 Now it supports `CTRL-T`, `CTRL-V`, and `CTRL-X` key bindings (configurable
-via `g:fzf_action`) and it opens fzf window according to `g:fzf_layout`
+via `g:skim_action`) and it opens skim window according to `g:skim_layout`
 setting.
 
 To make it easier to use, let's define `LS` command.
@@ -390,7 +390,7 @@ command! LS call skim#run(skim#wrap({'source': 'ls'}))
 
 Type `:LS` and see how it works.
 
-We would like to make `:LS!` (bang version) open fzf in fullscreen, just like
+We would like to make `:LS!` (bang version) open skim in fullscreen, just like
 `:SK!`. Add `-bang` to command definition, and use `<bang>` value to set
 the last `fullscreen` argument of `skim#wrap` (see `:help <bang>`).
 
@@ -407,33 +407,33 @@ command! -bang -complete=dir -nargs=? LS
     \ call skim#run(skim#wrap({'source': 'ls', 'dir': <q-args>}, <bang>0))
 ```
 
-Lastly, if you have enabled `g:fzf_history_dir`, you might want to assign
+Lastly, if you have enabled `g:skim_history_dir`, you might want to assign
 a unique name to our command and pass it as the first argument to `skim#wrap`.
 
 ```vim
-" The query history for this command will be stored as 'ls' inside g:fzf_history_dir.
-" The name is ignored if g:fzf_history_dir is not defined.
+" The query history for this command will be stored as 'ls' inside g:skim_history_dir.
+" The name is ignored if g:skim_history_dir is not defined.
 command! -bang -complete=dir -nargs=? LS
     \ call skim#run(skim#wrap('ls', {'source': 'ls', 'dir': <q-args>}, <bang>0))
 ```
 
 ### Global options supported by `skim#wrap`
 
-- `g:fzf_layout`
-- `g:fzf_action`
+- `g:skim_layout`
+- `g:skim_action`
     - **Works only when no custom `sink` (or `sinklist`) is provided**
         - Having custom sink usually means that each entry is not an ordinary
           file path (e.g. name of color scheme), so we can't blindly apply the
           same strategy (i.e. `tabedit some-color-scheme` doesn't make sense)
-- `g:fzf_colors`
-- `g:fzf_history_dir`
+- `g:skim_colors`
+- `g:skim_history_dir`
 
 Tips
 ----
 
-### fzf inside terminal buffer
+### skim inside terminal buffer
 
-On the latest versions of Vim and Neovim, fzf will start in a terminal buffer.
+On the latest versions of Vim and Neovim, skim will start in a terminal buffer.
 If you find the default ANSI colors to be different, consider configuring the
 colors using `g:terminal_ansi_colors` in regular Vim or `g:terminal_color_x`
 in Neovim.
@@ -467,7 +467,7 @@ else
 endif
 ```
 
-### Starting fzf in a popup window
+### Starting skim in a popup window
 
 ```vim
 " Required:
@@ -480,35 +480,35 @@ endif
 " - relative [boolean default v:false]
 " - border [string default 'rounded']: Border style
 "   - 'rounded' / 'sharp' / 'horizontal' / 'vertical' / 'top' / 'bottom' / 'left' / 'right'
-let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6 } }
+let g:skim_layout = { 'window': { 'width': 0.9, 'height': 0.6 } }
 ```
 
-Alternatively, you can make fzf open in a tmux popup window (requires tmux 3.2
-or above) by putting fzf-tmux options in `tmux` key.
+Alternatively, you can make skim open in a tmux popup window (requires tmux 3.2
+or above) by putting skim-tmux options in `tmux` key.
 
 ```vim
-" See `man fzf-tmux` for available options
+" See `man skim-tmux` for available options
 if exists('$TMUX')
-  let g:fzf_layout = { 'tmux': '-p90%,60%' }
+  let g:skim_layout = { 'tmux': '-p90%,60%' }
 else
-  let g:fzf_layout = { 'window': { 'width': 0.9, 'height': 0.6 } }
+  let g:skim_layout = { 'window': { 'width': 0.9, 'height': 0.6 } }
 endif
 ```
 
 ### Hide statusline
 
-When fzf starts in a terminal buffer, the file type of the buffer is set to
-`fzf`. So you can set up `FileType fzf` autocmd to customize the settings of
+When skim starts in a terminal buffer, the file type of the buffer is set to
+`skim`. So you can set up `FileType skim` autocmd to customize the settings of
 the window.
 
-For example, if you open fzf on the bottom on the screen (e.g. `{'down':
+For example, if you open skim on the bottom on the screen (e.g. `{'down':
 '40%'}`), you might want to temporarily disable the statusline for a cleaner
 look.
 
 ```vim
-let g:fzf_layout = { 'down': '30%' }
-autocmd! FileType fzf
-autocmd  FileType fzf set laststatus=0 noshowmode noruler
+let g:skim_layout = { 'down': '30%' }
+autocmd! FileType skim
+autocmd  FileType skim set laststatus=0 noshowmode noruler
   \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
 ```
 

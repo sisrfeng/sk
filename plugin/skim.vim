@@ -1,3 +1,5 @@
+" 放到autoload好像有问题??
+
 if exists('g:loaded_skim')
     finish
 en
@@ -8,62 +10,62 @@ if empty($SKIM_DEFAULT_COMMAND)
 en
 
 let s:is_win = has('win32') || has('win64')
-if s:is_win && &shellslash
-    set noshellslash
-    let s:base_dir = expand('<sfile>:h:h')
-    set shellslash
-el
-    let s:base_dir = expand('<sfile>:h:h')
-en
+    if s:is_win && &shellslash
+        set noshellslash
+        let s:base_dir = expand('<sfile>:h:h')
+        set shellslash
+    el
+        let s:base_dir = expand('<sfile>:h:h')
+    en
 
-if s:is_win
-    let s:term_marker = '&::SKIM'
+    if s:is_win
+        let s:term_marker = '&::SKIM'
 
-    fun! s:skim_call(fn, ...)
-        let shellslash = &shellslash
-        try
-            set noshellslash
+        fun! s:skim_call(fn, ...)
+            let shellslash = &shellslash
+            try
+                set noshellslash
+                return call(a:fn, a:000)
+            finally
+                let &shellslash = shellslash
+            endtry
+        endf
+
+        " Use utf-8 for skim.vim commands
+        " Return array of shell commands for cmd.exe
+        fun! s:enc_to_cp(str)
+            if !has('iconv')
+                return a:str
+            en
+            if !exists('s:codepage')
+                let s:codepage = libcallnr('kernel32.dll', 'GetACP', 0)
+            en
+            return iconv(a:str, &encoding, 'cp'.s:codepage)
+        endf
+        fun! s:wrap_cmds(cmds)
+            return map([
+                \ '@echo off',
+                \ 'setl     enabledelayedexpansion']
+            \ + (has('gui_running') ? ['set TERM= > nul'] : [])
+            \ + (type(a:cmds) == type([]) ? a:cmds : [a:cmds])
+            \ + ['endlocal'],
+            \ '<SID>enc_to_cp(v:val."\r")')
+        endf
+    el
+        let s:term_marker = ";#SKIM"
+
+        fun! s:skim_call(fn, ...)
             return call(a:fn, a:000)
-        finally
-            let &shellslash = shellslash
-        endtry
-    endf
+        endf
 
-    " Use utf-8 for skim.vim commands
-    " Return array of shell commands for cmd.exe
-    fun! s:enc_to_cp(str)
-        if !has('iconv')
+        fun! s:wrap_cmds(cmds)
+            return a:cmds
+        endf
+
+        fun! s:enc_to_cp(str)
             return a:str
-        en
-        if !exists('s:codepage')
-            let s:codepage = libcallnr('kernel32.dll', 'GetACP', 0)
-        en
-        return iconv(a:str, &encoding, 'cp'.s:codepage)
-    endf
-    fun! s:wrap_cmds(cmds)
-        return map([
-            \ '@echo off',
-            \ 'setl     enabledelayedexpansion']
-        \ + (has('gui_running') ? ['set TERM= > nul'] : [])
-        \ + (type(a:cmds) == type([]) ? a:cmds : [a:cmds])
-        \ + ['endlocal'],
-        \ '<SID>enc_to_cp(v:val."\r")')
-    endf
-el
-    let s:term_marker = ";#SKIM"
-
-    fun! s:skim_call(fn, ...)
-        return call(a:fn, a:000)
-    endf
-
-    fun! s:wrap_cmds(cmds)
-        return a:cmds
-    endf
-
-    fun! s:enc_to_cp(str)
-        return a:str
-    endf
-en
+        endf
+    en
 
 fun! s:shellesc_cmd(arg)
     let escaped = substitute(a:arg, '[&|<>()@^]', '^&', 'g')
@@ -211,38 +213,50 @@ fun! s:open(cmd, target)
 endf
 
 fun! s:common_sink(action, lines) abort
-    if len(a:lines) < 2
-        return
-    en
+    if len(a:lines) < 2  | return  | en
     let key = remove(a:lines, 0)
-    let Cmd = get(a:action, key, 'e')
-    if type(Cmd) == type(function('call'))
-        return Cmd(a:lines)
-    en
+    let Cmd = get(a:action, key, '-tab split')
+    " 作者原本的
+    " let Cmd = get(a:action, key, 'e')
+
+    if type(Cmd) == type(function('call'))  | return Cmd(a:lines)  | en
+
     if len(a:lines) > 1
-        augroup skim_swap
+        aug  skim_swap
             au      SwapExists * let v:swapchoice='o'
                         \| call s:warn('skim: E325: swap file exists: '.s:skim_expand('<afile>'))
-        augroup END
+        aug  END
     en
     try
-        let empty = empty(s:skim_expand('%')) && line('$') == 1 && empty(getline(1)) && !&modified
-        " Preserve the current working directory in case it's changed during
-        " the execution (e.g. `set autochdir` or `autocmd BufEnter * lcd ...`)
-        let cwd = exists('w:skim_pushd') ? w:skim_pushd.dir : expand('%:p:h')
+        let empty = empty(s:skim_expand('%'))
+                \ && line('$') == 1
+                \ && empty(getline(1))
+                \ && !&modified
+
+        " Preserve the current working directory in case
+        " it's changed during  the execution
+        " (e.g. `set autochdir` or `autocmd BufEnter * lcd ...`)
+        let cwd = exists('w:skim_pushd')
+                \ ? w:skim_pushd.dir
+                \ : expand('%:p:h')
+
         for item in a:lines
-            if item[0] != '~' && item !~ (s:is_win ? '^[A-Z]:\' : '^/')
-                let item = join([cwd, item], (s:is_win ? '\' : '/'))
+            if  item[0] != '~'
+          \ && item !~ (s:is_win
+                        \ ? '^[A-Z]:\'
+                        \ : '^/')
+                let item = join(
+                          \ [cwd, item],
+                          \ (s:is_win ? '\' : '/'),
+                         \ )
             en
+
             if empty
-                exe     'e' s:escape(item)
+                exe     '-tab split' s:escape(item)
+                " exe     'e' s:escape(item)
                 let empty = 0
             el
                 call s:open(Cmd, item)
-            en
-            if !has('patch-8.0.0177') && !has('nvim-0.2') && exists('#BufEnter')
-                        \ && isdirectory(item)
-                doautocmd BufEnter
             en
         endfor
     catch /^Vim:Interrupt$/
@@ -350,7 +364,7 @@ fun! skim#wrap(...)
     for arg in copy(a:000)
         let tidx = index(expects, type(arg) == 6 ? type(0) : type(arg), tidx)
         if tidx < 0
-            throw 'Invalid arguments (expected: [name string] [opts dict] [fullscreen boolean])'
+            throw ' arguments形如: [name string] [opts dict] [fullscreen boolean])'
         en
         let args[tidx] = arg
         let tidx += 1
@@ -385,12 +399,13 @@ fun! skim#wrap(...)
     " echom "opts.options 是: "   opts.options
 
     " History: g:skim_history_dir
-    if len(name) && len(get(g:, 'skim_history_dir', ''))
+    if  len(name)
+  \ && len(get(g:, 'skim_history_dir', ''))
         let dir = s:skim_expand(g:skim_history_dir)
         if !isdirectory(dir)
             call mkdir(dir, 'p')
         en
-        let history = skim#shellescape(dir.'/'.name)
+        let history = skim#shellescape(dir . '/' . name)
         let opts.options = join(['--history', history, opts.options])
     en
 
@@ -541,10 +556,10 @@ fun! s:pushd(dict)
     return ''
 endf
 
-augroup skim_popd
-    autocmd!
+aug  skim_popd
+    au!
     au      WinEnter * call s:dopopd()
-augroup END
+aug  END
 
 fun! s:dopopd()
     if !exists('w:skim_pushd')

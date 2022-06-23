@@ -66,10 +66,11 @@ fun! s:history(arg, extra, bang)
 endf
 
 " 谁调用它?
-" 作者忘记删掉?
-fun! fzf#complete(...)
-    return call('sk_funs#complete', a:000)
-endf
+    " " 作者忘记删掉?
+    " 我不小心粘贴过来?
+    " fun! fzf#complete(...)
+    "     return call('sk_funs#complete', a:000)
+    " endf
 
 if (has('nvim')
 \ || has('terminal')
@@ -124,7 +125,7 @@ augroup fzf_buffers
     autocmd BufDelete * silent! call remove(g:sk_funs#buffers, expand('<abuf>'))
 augroup END
 
-ino      <expr> <plug>(fzf-complete-word)        sk_funs#complete#word()
+ino      <expr> <plug>(fzf-complete-word)          sk_funs#complete#word()
 if s:is_win
     ino      <expr> <plug>(fzf-complete-path)      sk_funs#complete#path('dir /s/b')
     ino      <expr> <plug>(fzf-complete-file)      sk_funs#complete#path('dir /s/b/a:-d')

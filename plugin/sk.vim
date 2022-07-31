@@ -1,6 +1,7 @@
-" 放到autoload好像有问题??
 "\ 从skim(非vim插件)的repo里剥离出来, skim的bin用brew装的就行, skim(非vim插件)的目录在$TOOL,
-"被我backup藏起来了
+" 被我backup藏起来了
+
+" 放到autoload好像有问题??
 
 try
     unlet loaded_skim
@@ -12,7 +13,6 @@ let g:loaded_skim = 1
 
 "\ zshenv设了export SKIM_DEFAULT_COMMAND
 "\ 不再需要:
-
     "\ if empty($SKIM_DEFAULT_COMMAND)
     "\     let $SKIM_DEFAULT_COMMAND = "\fd --no-ignore --type f ||
     "\                            \ git ls-tree -r --name-only HEAD ||
@@ -90,7 +90,7 @@ fun! s:shellesc_cmd(arg)
     return '^"'.substitute(escaped, '\(\\\+\)$', '\1\1', '').'^"'
 endf
 
-fun! skim#shellescape(arg, ...)
+fun! sk#shellescape(arg, ...)
     let shell = get(a:000, 0, s:is_win ? 'cmd.exe' : 'sh')
     if shell =~# 'cmd.exe$'
         return s:shellesc_cmd(a:arg)
@@ -118,20 +118,19 @@ let s:layout_keys =  ['window', 'tmux', 'up', 'down', 'left' , 'right']
 let s:skim_rs     =  s:base_dir . '/bin/sk'
 let s:skim_tmux   =  s:base_dir . '/bin/sk-tmux'
 
-let s:cpo_save = &cpo
-set cpo&vim
+let s:cpo_save = &cpo  | set cpo&vim
 
-fun! s:popup_support()
-    return has('nvim') ? has('nvim-0.4') : has('popupwin') && has('patch-8.2.191')
-endf
 
 fun! s:default_layout()
-    return s:popup_support()
-                \ ? { 'window' : { 'width': 0.9, 'height': 0.8, 'highlight': 'Normal' } }
-                \ : { 'down': '~40%' }
+    return  { 'window' : {
+                 \ 'width': 0.9,
+                 \ 'height': 0.8,
+                 \ 'highlight': 'Normal',
+                \ }
+       \}
 endf
 
-" fun! skim#install()
+" fun! sk#install()
 "     if s:is_win && !has('win32unix')
 "         let script = s:base_dir.'/install.ps1'
 "         if !filereadable(script)
@@ -153,7 +152,7 @@ endf
 "     en
 " endf
 
-fun! skim#exec()
+fun! sk#exec()
 " 叫bin更好?
     if !exists('s:exec')
         if executable(s:skim_rs)
@@ -163,10 +162,10 @@ fun! skim#exec()
         elseif input('skim executable not found. Download binary? (y/n) install被wf注释掉了  ') =~? '^y'
             redraw
             echom '被我注释掉了'
-            " call skim#install()
+            " call sk#install()
             "\ 递归?
             "\ 还是只return函数名?
-            "\ return skim#exec()
+            "\ return sk#exec()
         el
             redraw
             throw 'skim executable not found'
@@ -225,10 +224,12 @@ fun! s:has_any(dict, keys)
 endf
 
 fun! s:open(cmd, target)
-    if stridx('edit', a:cmd) == 0 && s:skim_fnamemodify(a:target, ':p') ==# s:skim_expand('%:p')
+    if stridx('edit', a:cmd) == 0
+  \ && s:skim_fnamemodify(a:target, ':p') ==# s:skim_expand('%:p')
         return
     en
-    exe     a:cmd s:escape(a:target)
+
+    exe  a:cmd s:escape(a:target)
 endf
 
 fun! s:common_sink(action, lines) abort
@@ -243,7 +244,7 @@ fun! s:common_sink(action, lines) abort
     if len(a:lines) > 1
         aug  skim_swap
             au      SwapExists * let v:swapchoice='o'
-                        \| call s:warn('skim: E325: swap file exists: '.s:skim_expand('<afile>'))
+                        \| call s:warn('skim: E325: swap file exists: ' . s:skim_expand('<afile>'))
         aug  END
     en
     try
@@ -336,7 +337,7 @@ fun! s:ori_colors()
                 \ ','
                \ )
 
-    " echom "skim#shellescape('--color='..colors) 是: "   skim#shellescape('--color='..colors)
+    " echom "sk#shellescape('--color='..colors) 是: "   sk#shellescape('--color='..colors)
         " '--color=current          : #444444,
         "          info             : #20a780,
         "          spinner          : #807030,
@@ -352,14 +353,20 @@ fun! s:ori_colors()
 
     return empty(colors) ?
             \ ''
-            \ : skim#shellescape('--color=' . colors)
+            \ : sk#shellescape('--color=' . colors)
 endf
 
 fun! s:validate_layout(layout)
     for key in keys(a:layout)
         if index(s:layout_keys, key) < 0
-            throw printf('Invalid entry in g:skim_layout: %s (allowed: %s)%s',
-                        \ key, join(s:layout_keys, ', '), key == 'options' ? '. Use $SKIM_DEFAULT_OPTIONS.' : '')
+            throw printf(
+                \ 'Invalid entry in g:skim_layout: %s (allowed: %s)%s'   ,
+                \ key                                                 ,
+                \ join(s:layout_keys, ', ')                              ,
+                \ key == 'options'
+                    \ ? '. Use $SKIM_DEFAULT_OPTIONS.'
+                    \ : '' ,
+               \ )
         en
     endfor
     return a:layout
@@ -367,28 +374,32 @@ endf
 
 fun! s:evaluate_opts(options)
     return type(a:options) == type([]) ?
-                \ join(map(copy(a:options), 'skim#shellescape(v:val)')) : a:options
+                \ join(map(copy(a:options), 'sk#shellescape(v:val)')) : a:options
 endf
 
 " [name string,] [opts dict,] [fullscreen boolean]
-fun! skim#wrap(...)
-    let args = ['', {}, 0]
+fun! sk#wrap(...)
+    let args    = ['', {}, 0]
     let expects = map(copy(args), 'type(v:val)')
-    let tidx = 0
+    let start = 0
     for arg in copy(a:000)
-        let tidx = index(expects, type(arg) == 6 ? type(0) : type(arg), tidx)
-        if tidx < 0
+        let start = index(
+                    \ expects         ,
+                    \ type(arg) == type(v:true)
+                        \ ? type(v:t_number)
+                        \ : type(arg) ,
+                    \ start            ,
+                   \ )
+        if start < 0
             throw ' arguments形如: [name string] [opts dict] [fullscreen boolean])'
         en
-        let args[tidx] = arg
-        let tidx += 1
+        let args[start] = arg
+        let start += 1
         unlet arg
     endfor
     let [name, opts, bang] = args
 
-    if len(name)
-        let opts.name = name
-    end
+    if len(name)  | let opts.name = name  | en
 
     " Layout: g:skim_layout (and deprecated g:skim_height)
     if bang
@@ -401,33 +412,40 @@ fun! skim#wrap(...)
         if !exists('g:skim_layout') && exists('g:skim_height')
             let opts.down = g:skim_height
         el
-            let opts = extend(opts, s:validate_layout(get(g:, 'skim_layout', s:default_layout())))
+            let opts = extend(
+                        \ opts,
+                        \ s:validate_layout(  get(g:, 'skim_layout', s:default_layout()) ),
+                      \ )
         en
     en
 
 
-    let opts.options =  s:evaluate_opts( get(opts, 'options', '') )
-    "\ let opts.options = s:ori_colors() . ' ' . s:evaluate_opts( get(opts, 'options', '') )
+    "\ let opts.options =  s:evaluate_opts( get(opts, 'options', '') )
+    let opts.options = s:ori_colors() . ' ' . s:evaluate_opts( get(opts, 'options', '') )
     " echom "opts.options 是: "   opts.options
 
     " History: g:skim_history_dir
     if  len(name)
   \ && len(get(g:, 'skim_history_dir', ''))
         let dir = s:skim_expand(g:skim_history_dir)
-        if !isdirectory(dir)
-            call mkdir(dir, 'p')
-        en
-        let history = skim#shellescape(dir . '/' . name)
-        let opts.options = join(['--history', history, opts.options])
+        if !isdirectory(dir)  | call mkdir(dir, 'p')  | en
+        let history = sk#shellescape(dir . '/' . name)
+        let opts.options = join( ['--history', history, opts.options] )
     en
 
     " Action: g:skim_action
     if !s:has_any(opts, ['sink', 'sink*'])
-        let opts._action = get(g:, 'skim_action', s:default_action)
-        let opts.options .= ' --expect='.join(keys(opts._action), ',')
+        let opts._action = get(
+                          \ g:,
+                          \ 'skim_action',
+                          \ s:default_action,
+                        \ )
+        let opts.options .= ' --expect=' . join(keys(opts._action), ',')
+
         fun! opts.sink(lines) abort
             return s:common_sink(self._action, a:lines)
         endf
+
         let opts['sink*'] = remove(opts, 'sink')
     en
 
@@ -447,7 +465,7 @@ fun! s:use_sh()
     return [shell, shellslash, shellcmdflag, shellxquote]
 endf
 
-fun! skim#run(...) abort
+fun! sk#run(...) abort
     try
         let [shell, shellslash, shellcmdflag, shellxquote] = s:use_sh()
 
@@ -455,7 +473,7 @@ fun! skim#run(...) abort
         let temps  = { 'result': s:skim_tempname() }
         let optstr = s:evaluate_opts(get(dict, 'options', ''))
         try
-            let skim_exec = skim#shellescape(skim#exec())
+            let skim_exec = sk#shellescape(sk#exec())
             "\ /home/linuxbrew/.linuxbrew//bin/sk
             "\ echom "skim_exec 是: "   skim_exec
         catch
@@ -481,7 +499,7 @@ fun! skim#run(...) abort
                     \ map(source, '<SID>enc_to_cp(v:val)'),
                     \ temps.input,
                    \ )
-                let prefix = (s:is_win ? 'type ' : 'cat ') .skim#shellescape(temps.input) .'|'
+                let prefix = (s:is_win ? 'type ' : 'cat ') .sk#shellescape(temps.input) .'|'
             el
                 throw 'Invalid source type'
             en
@@ -578,7 +596,7 @@ fun! s:skim_tmux(dict)
         endfor
     en
     return printf('LINES=%d COLUMNS=%d %s %s %s --',
-        \ &lines, &columns, skim#shellescape(s:skim_tmux), size, (has_key(a:dict, 'source') ? '' : '-'))
+        \ &lines, &columns, sk#shellescape(s:skim_tmux), size, (has_key(a:dict, 'source') ? '' : '-'))
 endf
 
 fun! s:splittable(dict)
@@ -590,28 +608,30 @@ fun! s:pushd(dict)
     if s:present(a:dict, 'dir')
         let cwd = s:skim_getcwd()
         let w:skim_pushd = {
-        \   'command': haslocaldir() ? 'lcd' : (exists(':tcd') && haslocaldir(-1) ? 'tcd' : 'cd'),
+        \   'command': haslocaldir()
+                        \ ? 'lcd'
+                        \ :  ( haslocaldir(-1) ? 'tcd' : 'cd'),
         \   'origin': cwd,
         \   'bufname': bufname('')
         \ }
         exe     'lcd' s:escape(a:dict.dir)
-        let cwd = s:skim_getcwd()
+        let cwd              = s:skim_getcwd()
         let w:skim_pushd.dir = cwd
-        let a:dict.pushd = w:skim_pushd
+        let a:dict.pushd     = w:skim_pushd
         return cwd
     en
     return ''
 endf
 
-aug  skim_popd
-    au!
-    au      WinEnter * call s:dopopd()
-aug  END
 
 fun! s:dopopd()
-    if !exists('w:skim_pushd')
-        return
+    if !exists('w:skim_pushd')  | return  | en
+
+    if s:skim_getcwd() ==# w:skim_pushd.dir
+   \ && (!&autochdir || w:skim_pushd.bufname ==# bufname(''))
+        exe     w:skim_pushd.command  s:escape(w:skim_pushd.origin)
     en
+    unlet! w:skim_pushd
 
     " FIXME:
         " We temporarily change the working directory to 'dir' entry
@@ -619,7 +639,7 @@ fun! s:dopopd()
         " (set to the current working directory if not given)
         " before running skim.
         "
-        " e.g. call skim#run({
+        " e.g. call sk#run({
                    "\  \ 'dir': '/tmp',
                    "\  \ 'source': 'ls',
                    "\  \ 'sink': 'e',
@@ -640,11 +660,13 @@ fun! s:dopopd()
         " In that case,
             " the user will have an  unexpected result.
 
-    if s:skim_getcwd() ==# w:skim_pushd.dir && (!&autochdir || w:skim_pushd.bufname ==# bufname(''))
-        exe     w:skim_pushd.command s:escape(w:skim_pushd.origin)
-    en
-    unlet! w:skim_pushd
 endf
+
+aug  skim_popd
+    au!
+    au      WinEnter * call s:dopopd()
+aug  END
+
 
 fun! s:xterm_launcher()
     let fmt = 'xterm -T "[skim]" -bg "%s" -fg "%s" -geometry %dx%d+%d+%d -e bash -ic %%s'
@@ -716,7 +738,7 @@ fun! s:execute(dict, command, use_height, temps) abort
     elseif has('win32unix') && $TERM !=# 'cygwin'
         let shellscript = s:skim_tempname()
         call writefile([command], shellscript)
-        let command = 'cmd.exe /C '.skim#shellescape('set "TERM=" & start /WAIT sh -c '.shellscript)
+        let command = 'cmd.exe /C '.sk#shellescape('set "TERM=" & start /WAIT sh -c '.shellscript)
         let a:temps.shellscript = shellscript
     en
     if a:use_height
@@ -735,7 +757,7 @@ fun! s:execute_tmux(dict, command, temps) abort
     let cwd = s:pushd(a:dict)
     if len(cwd)
         " -c '#{pane_current_path}' is only available on tmux 1.9 or above
-        let command = join(['cd', skim#shellescape(cwd), '&&', command])
+        let command = join(['cd', sk#shellescape(cwd), '&&', command])
     en
 
     call system(command)
@@ -784,9 +806,6 @@ fun! s:split(dict)
     try
         if s:present(a:dict, 'window')
             if type(a:dict.window) == type({})
-                if !s:popup_support()
-                    throw 'Nvim 0.4+ or Vim 8.2.191+ with popupwin feature is required for pop-up window'
-                end
                 call s:popup(a:dict.window)
                 let is_popup = 1
             el
@@ -823,89 +842,82 @@ fun! s:execute_term(dict, command, temps) abort
     let pbuf    = bufnr('')
     let [ppos, winopts, is_popup] = s:split(a:dict)
     call s:use_sh()
-    let b:skim = a:dict
-    let skim = {
-        \ 'buf'     : bufnr('') ,
-        \ 'pbuf'    : pbuf      ,
-        \ 'ppos'    : ppos      ,
-        \ 'dict'    : a:dict    ,
-        \ 'temps'   : a:temps   ,
-        \ 'winopts' : winopts   ,
-        \ 'winrest' : winrest   ,
-        \ 'lines'   : &lines    ,
-        \ 'columns' : &columns  ,
-        \ 'command' : a:command ,
-       \ }
 
-    fun! skim.switch_back(inplace)
-        if a:inplace
-      \ && bufnr('') == self.buf
-            if bufexists(self.pbuf)  | exe     'keepalt b' self.pbuf  | en
-            " No other listed buffer
-            if bufnr('') == self.buf  | enew  | en
-        en
-    endf
-    fun! skim.on_exit(id, code, ...)
-        if s:getpos() == self.ppos " {'window': 'enew'}
-            for [opt, val] in items(self.winopts)
-                exe     'let' opt '=' val
-            endfor
-            call self.switch_back(1)
-        el
-            if bufnr('') == self.buf
-                " We use close instead of bd! since Vim does not close the split when
-                " there's no other listed buffer (nvim +'set nobuflisted')
-                close
+    "\ build "term_opts"
+        let b:term_opts = a:dict  "\ 这行多余的?
+        let term_opts = {
+            \ 'buf'     : bufnr('') ,
+            \ 'pbuf'    : pbuf      ,
+            \ 'ppos'    : ppos      ,
+            \ 'dict'    : a:dict    ,
+            \ 'temps'   : a:temps   ,
+            \ 'winopts' : winopts   ,
+            \ 'winrest' : winrest   ,
+            \ 'lines'   : &lines    ,
+            \ 'columns' : &columns  ,
+            \ 'command' : a:command ,
+        \ }
+
+        fun! term_opts.switch_back(inplace)
+            if a:inplace
+        \ && bufnr('') == self.buf
+                if bufexists(self.pbuf)  | exe     'keepalt b' self.pbuf  | en
+                " No other listed buffer
+                if bufnr('') == self.buf  | enew  | en
             en
-            silent! execute 'tabnext' self.ppos.tab
-            silent! execute self.ppos.win.'wincmd w'
-        en
+        endf
+        fun! term_opts.on_exit(id, code, ...)
+            if s:getpos() == self.ppos " {'window': 'enew'}
+                for [opt, val] in items(self.winopts)
+                    exe     'let' opt '=' val
+                endfor
+                call self.switch_back(1)
+            el
+                if bufnr('') == self.buf
+                    " We use close instead of bd! since Vim does not close the split when
+                    " there's no other listed buffer (nvim +'set nobuflisted')
+                    close
+                en
+                silent! execute 'tabnext' self.ppos.tab
+                silent! execute self.ppos.win.'wincmd w'
+            en
 
-        if bufexists(self.buf)
-            exe     'bd!' self.buf
-        en
+            if bufexists(self.buf)
+                exe     'bd!' self.buf
+            en
 
-        if &lines == self.lines && &columns == self.columns && s:getpos() == self.ppos
-            exe     self.winrest
-        en
+            if &lines == self.lines && &columns == self.columns && s:getpos() == self.ppos
+                exe     self.winrest
+            en
 
-        if !s:exit_handler(a:code, self.command, 1)
-            return
-        en
+            if !s:exit_handler(a:code, self.command, 1)
+                return
+            en
 
-        call s:pushd(self.dict)
-        let lines = s:collect(self.temps)
-        call s:callback(self.dict, lines)
-        call self.switch_back(s:getpos() == self.ppos)
-    endf
+            call s:pushd(self.dict)
+            let lines = s:collect(self.temps)
+            call s:callback(self.dict, lines)
+            call self.switch_back(s:getpos() == self.ppos)
+        endf
 
     try
         call s:pushd(a:dict)
-        if s:is_win
-            let skim.temps.batchfile = s:skim_tempname().'.bat'
-            call writefile(s:wrap_cmds(a:command), skim.temps.batchfile)
-            let command = skim.temps.batchfile
-        el
-            let command = a:command
-        en
-        let command .= s:term_marker
+        let cmd = a:command . s:term_marker
                         " 这货是  ;#SKIM
-
         " set shellcmdflag+=-i  导致报错
-        call termopen(command, skim)
+        call termopen(cmd, term_opts)
         " set shellcmdflag-=-i
 
         " todo:
             " 参考jobstart() 的callback, 看为啥有个不碍事的报错
 
         redir >> ~/.t/2c.vim
-            silent  echom "skim 是:"
-            silent  echom  skim
+            silent  echom "term_opts 是:"
+            silent  echom  term_opts
             silent  echom ""
-            silent  echom "command 是:"
-            silent  echom command
+            silent  echom "cmd 是:"
+            silent  echom cmd
         redir END
-        "\
     finally
         call s:dopopd()
     endtry
@@ -936,16 +948,16 @@ fun! s:callback(dict, lines) abort
     try
         if has_key(a:dict, 'sink')
             for line in a:lines
-                if type(a:dict.sink) == 2
+                if type(a:dict.sink) == type(v:t_func)
                     call a:dict.sink(line)
                 el
                     exe     a:dict.sink s:escape(line)
                 en
             endfor
         en
-        if has_key(a:dict, 'sink*')
-            call a:dict['sink*'](a:lines)
-        en
+
+        if has_key(a:dict, 'sink*')  | call a:dict['sink*'](a:lines)  | en
+
     catch
         if stridx(v:exception, ':E325:') < 0
             echoerr v:exception
@@ -1119,11 +1131,11 @@ fun! s:sk_cmd(bang, ...) abort
             \ : '> '
     call extend(opts.options, ['--prompt', prompt])
     call extend(opts.options, args)
-    call skim#run(skim#wrap(
-                    \ 'SKIM',
-                     \ opts,
-                     \ a:bang,
-                    \ ))
+    call sk#run(sk#wrap(
+                \ 'SKIM',
+                \ opts,
+                \ a:bang,
+               \ ))
 endf
 
 com!     -nargs=* -complete=dir -bang SK call s:sk_cmd(<bang>0, <f-args>)

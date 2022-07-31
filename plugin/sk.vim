@@ -22,65 +22,23 @@ let g:loaded_skim = 1
     "\ en
 
 
-let s:is_win = has('win32') || has('win64')
+"\ 与是否为MS-windows相关:
+    " 作者设的 本来是git clone来的skim/plugin所在路径  (不是skim.vim的)
+    let s:base_dir = '/home/linuxbrew/.linuxbrew'
 
-    if s:is_win && &shellslash
-        set noshellslash
-        let s:base_dir = expand('<sfile>:h:h')
-        set shellslash
-    el
-        " 本来是git clone来的skim/plugin  (不是skim.vim的)
-        let s:base_dir = '/home/linuxbrew/.linuxbrew'
-    en
+    let s:term_marker = ";#SKIM"
 
-    if s:is_win
-        let s:term_marker = '&::SKIM'
+    fun! s:skim_call(fn, ...)
+        return call(a:fn, a:000)
+    endf
 
-        fun! s:skim_call(fn, ...)
-            let shellslash = &shellslash
-            try
-                set noshellslash
-                return call(a:fn, a:000)
-            finally
-                let &shellslash = shellslash
-            endtry
-        endf
+    fun! s:wrap_cmds(cmds)
+        return a:cmds
+    endf
 
-        " Use utf-8 for skim.vim commands
-        " Return array of shell commands for cmd.exe
-        fun! s:enc_to_cp(str)
-            if !has('iconv')
-                return a:str
-            en
-            if !exists('s:codepage')
-                let s:codepage = libcallnr('kernel32.dll', 'GetACP', 0)
-            en
-            return iconv(a:str, &encoding, 'cp'.s:codepage)
-        endf
-        fun! s:wrap_cmds(cmds)
-            return map([
-                \ '@echo off',
-                \ 'setl     enabledelayedexpansion']
-            \ + (has('gui_running') ? ['set TERM= > nul'] : [])
-            \ + (type(a:cmds) == type([]) ? a:cmds : [a:cmds])
-            \ + ['endlocal'],
-            \ '<SID>enc_to_cp(v:val."\r")')
-        endf
-    el
-        let s:term_marker = ";#SKIM"
-
-        fun! s:skim_call(fn, ...)
-            return call(a:fn, a:000)
-        endf
-
-        fun! s:wrap_cmds(cmds)
-            return a:cmds
-        endf
-
-        fun! s:enc_to_cp(str)
-            return a:str
-        endf
-    en
+    fun! s:enc_to_cp(str)
+        return a:str
+    endf
 
 fun! s:shellesc_cmd(arg)
     let escaped = substitute(a:arg, '[&|<>()@^]', '^&', 'g')
@@ -91,7 +49,7 @@ fun! s:shellesc_cmd(arg)
 endf
 
 fun! sk#shellescape(arg, ...)
-    let shell = get(a:000, 0, s:is_win ? 'cmd.exe' : 'sh')
+    let shell = get(a:000, 0,  'sh')
     if shell =~# 'cmd.exe$'
         return s:shellesc_cmd(a:arg)
     en
@@ -129,28 +87,6 @@ fun! s:default_layout()
                 \ }
        \}
 endf
-
-" fun! sk#install()
-"     if s:is_win && !has('win32unix')
-"         let script = s:base_dir.'/install.ps1'
-"         if !filereadable(script)
-"             throw script.' not found'
-"         en
-"         let script = 'powershell -ExecutionPolicy Bypass -file ' . script
-"     el
-"         let script = s:base_dir.'/install'
-"         if !executable(script)
-"             throw script.' not found'
-"         en
-"         let script .= ' --bin'
-"     en
-"
-"     call s:warn('Running skim installer ...')
-"     call system(script)
-"     if v:shell_error
-"         throw 'Failed to download skim: '.script
-"     en
-" endf
 
 fun! sk#exec()
 " 叫bin更好?
@@ -198,8 +134,7 @@ fun! s:tmux_enabled()
 endf
 
 fun! s:escape(path)
-    let path = fnameescape(a:path)
-    return s:is_win ? escape(path, '$') : path
+    return  fnameescape(a:path)
 endf
 
 fun! s:error(msg)
@@ -262,12 +197,10 @@ fun! s:common_sink(action, lines) abort
 
         for item in a:lines
             if  item[0] != '~'
-          \ && item !~ (s:is_win
-                        \ ? '^[A-Z]:\'
-                        \ : '^/')
+          \ && item !~   '^/'
                 let item = join(
                           \ [cwd, item],
-                          \ (s:is_win ? '\' : '/'),
+                          \ '/',
                          \ )
             en
 
@@ -286,30 +219,17 @@ fun! s:common_sink(action, lines) abort
 endf
 
 fun! s:get_color(attr, ...)
-    let gui = !s:is_win &&
-        \ !has('win32unix') &&
-        \ has('termguicolors') &&
-        \ &termguicolors
-    let ui_ = gui ? 'gui' : 'cterm'
-    let pat = gui ?
-        \ '^#[a-f0-9]\+'
-        \ : '^[0-9]\+$'
-
-    " echom '----'
-    " echom 'a:attr'
-    " echom a:attr
+    let pat = '^#[a-f0-9]\+'
     for group in a:000
-        " echom "group 是: "   group
         let code = synIDattr(
                         \ synIDtrans(hlID(group)),
                         \ a:attr,
-                        \ ui_,
+                        \ 'gui',
                        \ )
-        " echom "code 是: "   code
         if code =~? pat
             return code
-                " 'current'          : ['fg', 'CursorLine', 'CursorColumn', 'Normal'],
-                " 只要遇到能用的, 就定下颜色
+            " 'current'   : ['fg', 'CursorLine', 'CursorColumn', 'Normal'],
+            " 只要遇到能用的, 就定下颜色
         en
     endfor
 
@@ -454,14 +374,7 @@ endf
 
 fun! s:use_sh()
     let [shell, shellslash, shellcmdflag, shellxquote] = [&shell, &shellslash, &shellcmdflag, &shellxquote]
-    if s:is_win
-        set shell=cmd.exe
-        set noshellslash
-        let &shellcmdflag = has('nvim') ? '/s /c' : '/c'
-        let &shellxquote = has('nvim') ? '"' : '('
-    el
-        set shell=sh
-    en
+    set shell=sh
     return [shell, shellslash, shellcmdflag, shellxquote]
 endf
 
@@ -499,7 +412,7 @@ fun! sk#run(...) abort
                     \ map(source, '<SID>enc_to_cp(v:val)'),
                     \ temps.input,
                    \ )
-                let prefix = (s:is_win ? 'type ' : 'cat ') .sk#shellescape(temps.input) .'|'
+                let prefix = 'cat ' . sk#shellescape(temps.input) .'|'
             el
                 throw 'Invalid source type'
             en
@@ -507,20 +420,25 @@ fun! sk#run(...) abort
             let prefix = ''
         en
 
-        let prefer_tmux = get(g:, 'skim_prefer_tmux', 0) || has_key(dict, 'tmux')
-        let use_height = has_key(dict, 'down') && !has('gui_running') &&
-                    \ !(has('nvim') || s:is_win || has('win32unix') || s:present(dict, 'up', 'left', 'right', 'window')) &&
-                    \ executable('tput') && filereadable('/dev/tty')
+        let prefer_tmux = get(g:, 'skim_prefer_tmux', 0)
+                    \ || has_key(dict, 'tmux')
+        let use_height = has_key(dict, 'down')
+                    \ && !has('gui_running')
+                    \ && !(  has('nvim') ||
+                            \ has('win32unix') ||
+                            \ s:present(dict, 'up', 'left', 'right', 'window'))
+                    \ &&   executable('tput')
+                    \ && filereadable('/dev/tty')
+
         let has_vim8_term = has('terminal') && has('patch-8.0.995')
         let has_nvim_term = 1
-        " let has_nvim_term = has('nvim-0.2.1') || has('nvim') && !s:is_win
         let use_term = has_nvim_term
                 \ || has_vim8_term
                 \ && !has('win32unix')
-                \ && (has('gui_running')
-                \ || s:is_win
-                \ || !use_height
-                \ && s:present(dict, 'down', 'up', 'left', 'right', 'window'))
+                \ && ( has('gui_running')
+                    \  || !use_height
+                    \  && s:present(dict, 'down', 'up', 'left', 'right', 'window')
+                  \ )
 
         let use_tmux = (has_key(dict, 'tmux') || (!use_height && !use_term || prefer_tmux) && !has('win32unix') && s:splittable(dict)) && s:tmux_enabled()
         if prefer_tmux && use_tmux
@@ -678,7 +596,7 @@ fun! s:xterm_launcher()
         \ &columns, &lines/2, getwinposx(), getwinposy())
 endf
 unlet! s:launcher
-if s:is_win || has('win32unix')
+if  has('win32unix')
     let s:launcher = '%s'
 el
     let s:launcher = function('s:xterm_launcher')
@@ -706,7 +624,7 @@ fun! s:execute(dict, command, use_height, temps) abort
     if has('unix') && !a:use_height
         silent! !clear 2> /dev/null
     en
-    let escaped = (a:use_height || s:is_win) ? a:command : escape(substitute(a:command, '\n', '\\n', 'g'), '%#!')
+    let escaped = a:use_height  ? a:command : escape(substitute(a:command, '\n', '\\n', 'g'), '%#!')
     if has('gui_running')
         let Launcher = get(a:dict, 'launcher', get(g:, 'Skim_launcher', get(g:, 'skim_launcher', s:launcher)))
         let fmt = type(Launcher) == 2 ? call(Launcher, []) : Launcher
@@ -717,30 +635,14 @@ fun! s:execute(dict, command, use_height, temps) abort
     el
         let command = escaped
     en
-    if s:is_win
-        let batchfile = s:skim_tempname().'.bat'
-        call writefile(s:wrap_cmds(command), batchfile)
-        let command = batchfile
-        let a:temps.batchfile = batchfile
-        if has('nvim')
-            let skim = {}
-            let skim.dict = a:dict
-            let skim.temps = a:temps
-            fun! skim.on_exit(job_id, exit_status, event) dict
-                call s:pushd(self.dict)
-                let lines = s:collect(self.temps)
-                call s:callback(self.dict, lines)
-            endf
-            let cmd = 'start /wait cmd /c '.command
-            call jobstart(cmd, skim)
-            return []
-        en
-    elseif has('win32unix') && $TERM !=# 'cygwin'
+
+    if has('win32unix') && $TERM !=# 'cygwin'
         let shellscript = s:skim_tempname()
         call writefile([command], shellscript)
         let command = 'cmd.exe /C '.sk#shellescape('set "TERM=" & start /WAIT sh -c '.shellscript)
         let a:temps.shellscript = shellscript
     en
+
     if a:use_height
         let stdin = has_key(a:dict, 'source') ? '' : '< /dev/tty'
         call system(printf('tput cup %d > /dev/tty; tput cnorm > /dev/tty; %s %s 2> /dev/tty', &lines, command, stdin))
@@ -915,6 +817,7 @@ fun! s:execute_term(dict, command, temps) abort
             silent  echom "term_opts 是:"
             silent  echom  term_opts
             silent  echom ""
+
             silent  echom "cmd 是:"
             silent  echom cmd
         redir END
@@ -1106,7 +1009,7 @@ fun! s:shortpath()
     if !has('win32unix')
         let short = pathshorten(short)
     en
-    let slash = (s:is_win && !&shellslash) ? '\' : '/'
+    let slash =  '/'
     return empty(short) ? '~'.slash : short . (short =~ escape(slash, '\').'$' ? '' : slash)
 endf
 
@@ -1119,9 +1022,6 @@ fun! s:sk_cmd(bang, ...) abort
                               \ '[/\\]*$',
                               \ '/',
                             \'')
-        if s:is_win && !&shellslash
-            let opts.dir = substitute(opts.dir, '/', '\\', 'g')
-        en
         let prompt = opts.dir
     el
         let prompt = s:shortpath()

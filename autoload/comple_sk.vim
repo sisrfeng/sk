@@ -26,7 +26,7 @@ en
 fun! comple_sk#word(...)
     return sk_funs#complete(s:extend({
         \ 'source': 'cat /usr/share/dict/words'},
-        \ get(a:000, 0, skim#wrap())))
+        \ get(a:000, 0, sk#wrap())))
 endf
 
 " ----------------------------------------------------------------------------
@@ -50,7 +50,7 @@ fun! s:file_source(prefix)
     let [dir, head, tail] = s:file_split_prefix(a:prefix)
     return printf(
         \ "cd %s && ".s:file_cmd." | sed %s",
-        \ skim#shellescape(dir), skim#shellescape('s:^:'.(empty(a:prefix) || a:prefix == tail ? '' : head).':'))
+        \ sk#shellescape(dir), sk#shellescape('s:^:'.(empty(a:prefix) || a:prefix == tail ? '' : head).':'))
 endf
 
 fun! s:file_options(prefix)
@@ -107,7 +107,7 @@ fun! comple_sk#path(command, ...)
     return sk_funs#complete(s:extend({
     \ 'prefix':  s:function('s:fname_prefix'),
     \ 'source':  s:function('s:file_source'),
-    \ 'options': s:function('s:file_options')}, get(a:000, 0, skim#wrap())))
+    \ 'options': s:function('s:file_options')}, get(a:000, 0, sk#wrap())))
 endf
 
 " ----------------------------------------------------------------------------
@@ -126,13 +126,13 @@ fun! comple_sk#line(...)
     \ 'prefix':  '^.*$',
     \ 'source':  lines,
     \ 'options': '--tiebreak=index --ansi --nth '.nth.'.. --tabstop=1',
-    \ 'reducer': s:function('s:reduce_line')}, get(a:000, 0, skim#wrap())))
+    \ 'reducer': s:function('s:reduce_line')}, get(a:000, 0, sk#wrap())))
 endf
 
 fun! comple_sk#buffer_line(...)
     return sk_funs#complete(s:extend({
     \ 'prefix': '^.*$',
-    \ 'source': sk_funs#_uniq(getline(1, '$'))}, get(a:000, 0, skim#wrap())))
+    \ 'source': sk_funs#_uniq(getline(1, '$'))}, get(a:000, 0, sk#wrap())))
 endf
 
 let &cpo = s:cpo_save

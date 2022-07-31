@@ -252,10 +252,11 @@ the result of `skim#wrap()` function like so:
 `skim#run()` function is the core of Vim integration.
 It takes a single
 dictionary argument, *a spec*, and starts skim process accordingly.
-At the very
-least, specify `sink` option to
-tell what it should do with the selected  entry.
+At the very  least,
+    specify `sink` option to
+    tell what it should do with the selected  entry.
 
+```
     call skim#run({'sink': 'e'})
 ```
 

@@ -1,15 +1,13 @@
-
 " 说明详见:  /home/wf/.local/share/nvim/PL/skim4vim/skim的非vim插件的配合vim的方法.md
 
 let s:cpo_save = &cpo
 set cpo&vim
 
 " Common
-
     let s:min_version = '0.9.3'
-    let s:is_win = has('win32') || has('win64')
+    let s:is_win      = has('win32') || has('win64')
     let s:layout_keys = ['window', 'up', 'down', 'left', 'right']
-    let s:bin_dir = expand('<sfile>:p:h:h:h').'/bin/'
+    let s:bin_dir     = expand('<sfile>:p:h:h:h').'/bin/'
     let s:bin = {
     \ 'preview': s:bin_dir.'preview.sh',
     \ 'tags':    s:bin_dir.'tags.pl' }
@@ -42,14 +40,14 @@ set cpo&vim
         if s:checked  | return  | en
 
         " 我把skim.vim放到autoload下了
-        " if !exists('*skim#run')
-        "     throw "skim#run function not found. You also need Vim plugin from the main fzf repository (i.e. junegunn/fzf *and* junegunn/fzf.vim)"
+        " if !exists('*sk#run')
+        "     throw "sk#run function not found. You also need Vim plugin from the main fzf repository (i.e. junegunn/fzf *and* junegunn/fzf.vim)"
         " en
-        " if !exists('*skim#exec')
-        "     throw "skim#exec function not found. You need to upgrade Vim plugin from the main fzf repository ('junegunn/fzf')"
+        " if !exists('*sk#exec')
+        "     throw "sk#exec function not found. You need to upgrade Vim plugin from the main fzf repository ('junegunn/fzf')"
         " en
 
-        let exec = skim#exec()
+        let exec = sk#exec()
         let fzf_version = matchstr(
             \ systemlist(exec .. ' --version')[0],
             \ '[0-9.]*',
@@ -82,7 +80,7 @@ set cpo&vim
                 let a:dict.options = join(map(
                                       \ all_opts,
                                       \ 'type(v:val) == s:TYPE.list
-                                        \ ? join( map(copy(v:val), "skim#shellescape(v:val)") )
+                                        \ ? join( map(copy(v:val), "sk#shellescape(v:val)") )
                                         \ : v:val',
                                      \ ))
             en
@@ -151,7 +149,7 @@ set cpo&vim
             \ ? substitute(substitute(s:bin.preview, '^\([A-Z]\):', '/mnt/\L\1', ''), '\', '/', 'g')
             \ : escape(s:bin.preview, '\'))
         el
-            let preview_cmd = skim#shellescape(s:bin.preview)
+            let preview_cmd = sk#shellescape(s:bin.preview)
         en
         let preview += ['--preview', preview_cmd.' '.placeholder]
 
@@ -220,14 +218,14 @@ set cpo&vim
         en
 
         " if sink or sink* is found
-            " skim#wrap does not append  `--expect`
+            " sk#wrap does not append  `--expect`
         if options !~ '--expect'
      \ && has_key(opts, 'sink*')
             let Sink = remove(opts, 'sink*')
-            let wrapped = skim#wrap(a:name, opts, a:bang)
+            let wrapped = sk#wrap(a:name, opts, a:bang)
             let wrapped['sink*'] = Sink
         el
-            let wrapped = skim#wrap(a:name, opts, a:bang)
+            let wrapped = sk#wrap(a:name, opts, a:bang)
         en
         return wrapped
     endf
@@ -310,7 +308,7 @@ set cpo&vim
         return filter(range(1, bufnr('$')), 'buflisted(v:val) && getbufvar(v:val, "&filetype") != "qf"')
     endf
 
-    fun! s:main(name, opts, extra)
+    fun! s:to_run(name, opts, extra)
         call s:check_requirements()
 
         let [extra, bang] = [{}, 0]
@@ -324,22 +322,22 @@ set cpo&vim
         elseif len(a:extra) == 2
             let [extra, bang] = a:extra
         el
-            throw 'invalid number of arguments'
+            throw '调用main时, extra这个list包含的参数个数只能是0,1或2'
         en
 
         let ex_opt_list  = has_key(extra, 'options')
-                    \ ? remove(extra, 'options')
-                    \ : ''
+                            \ ? remove(extra, 'options')
+                            \ : ''
         let merged_opts = extend(copy(a:opts), extra)
         call s:merge_opts(merged_opts, ex_opt_list)
 
         " todo: 默认把所有options 经过s:reverse-list()  过滤
             "( 加 --layout=reverse-list)
-        return skim#run( s:wrap(
-                         \ a:name,
-                         \ merged_opts,
-                         \ bang,
-                        \ )
+        return sk#run( s:wrap(
+                       \ a:name,
+                       \ merged_opts,
+                       \ bang,
+                      \ )
                  \)
     endf
 
@@ -428,21 +426,28 @@ set cpo&vim
     fun! s:shortpath()
         let short = fnamemodify(getcwd(), ':~:.')
         " ~代替/home/XXX
-        if !has('win32unix')
-            let short = pathshorten(short)
-        en
-        let slash = (s:is_win && !&shellslash) ? '\' : '/'
+
+        if !has('win32unix')  | let short = pathshorten(short)  | en
+
+        let slash = (s:is_win && !&shellslash)
+                \ ? '\'
+                \ : '/'
         return empty(short) ? '~'.slash : short . (short =~ escape(slash, '\').'$' ? '' : slash)
     endf
 
     fun! sk_funs#files(dir, ...)
         let arg_dict = {}
         if !empty(a:dir)
-            if !isdirectory(expand(a:dir))
-                return s:warn('Invalid directory')
-            en
-            let slash = (s:is_win && !&shellslash) ? '\\' : '/'
-            let dir = substitute(a:dir, '[/\\]*$', slash, '')
+            if !isdirectory(expand(a:dir))  | return s:warn('Invalid directory')  | en
+            let slash = (s:is_win && !&shellslash)
+                    \ ? '\\'
+                    \ : '/'
+            let dir = substitute(
+                \ a:dir,
+                \ '[/\\]*$',
+                \ slash,
+                \ '',
+               \ )
             let arg_dict.dir = dir
         el
             let dir = s:shortpath()
@@ -455,11 +460,15 @@ set cpo&vim
                        \ strwidth(dir) < &columns / 2 - 20 ? dir : '> ' ,
                      \ ]
 
-        call s:merge_opts(arg_dict, get(g:, 'fzf_files_options', []))
+        call s:merge_opts(
+            \ arg_dict,
+            \ get(g:, 'fzf_files_options', []),
+           \ )
+                      "\ fzf_files_options : 没有说明
 
-        " 参考: return s:main('blines'
+        " 参考: return s:to_run('blines'
         " a:000等价于那里的args
-        return s:main(
+        return s:to_run(
                \ 'wf_files',
                 \ arg_dict,
                 \ a:000,
@@ -539,7 +548,7 @@ set cpo&vim
                         \ [a:1, a:000[1:]]
                         \ : ['', a:000]
         return
-            \ s:main('lines',
+            \ s:to_run('lines',
                    \ {
                     \ 'source':  lines,
                     \ 'sink*':   function('s:line_handler'),
@@ -635,7 +644,7 @@ set cpo&vim
         let [query, args] = (a:0 && type(a:1) == type(''))
                         \ ? [a:1, a:000[1:]]
                         \ : ['', a:000]
-        return s:main('blines',
+        return s:to_run('blines',
                \ {
                \ 'source'  : s:blines_source(query)         ,
                \ 'sink*'   : function('s:buffer_line_sink') ,
@@ -663,7 +672,7 @@ set cpo&vim
         if has('packages')
             let colors += split(globpath(&packpath, "pack/*/opt/*/colors/*.vim"), "\n")
         en
-        return s:main('colors', {
+        return s:to_run('colors', {
         \ 'source':  sk_funs#_uniq(map(colors, "substitute(fnamemodify(v:val, ':t'), '\\..\\{-}$', '', '')")),
         \ 'sink':    'colo',
         \ 'options': '-m --prompt="Colors> "'
@@ -672,7 +681,7 @@ set cpo&vim
 
 " Locate
     fun! sk_funs#locate(query, ...)
-        return s:main('locate', {
+        return s:to_run('locate', {
         \ 'source':  'locate '.a:query,
         \ 'options': '-m --prompt "Locate> "'
         \}, a:000)
@@ -729,7 +738,7 @@ set cpo&vim
     endf
 
     fun! sk_funs#command_history(...)
-        return s:main('history-command', {
+        return s:to_run('history-command', {
         \ 'source':  s:history_source(':'),
         \ 'sink*':   function('s:cmd_history_sink'),
         \ 'options': '--layout=reverse-list  -m --ansi --prompt="Hist:> " --header-lines=1 --expect=ctrl-e --tiebreak=index'
@@ -742,23 +751,26 @@ set cpo&vim
     endf
 
     fun! sk_funs#search_history(...)
-        return s:main('history-search', {
+        return s:to_run('history-search', {
         \ 'source':  s:history_source('/'),
         \ 'sink*':   function('s:search_history_sink'),
         \ 'options': '--layout=reverse-list -m --ansi --prompt="Hist/> " --header-lines=1 --expect=ctrl-e --tiebreak=index'}, a:000)
     endf
 
-    fun! sk_funs#history(...)
-        return s:main('history-files', {
-        \ 'source':  sk_funs#_recent_files(),
-        \ 'options': s:reverse_list([
-            \ '-m',
-            \ '--header-lines',
-            \ !empty(expand('%')),
-            \ '--prompt',
-            \ '最近使用> ',
-           \ ])
-        \}, a:000)
+    fun! sk_funs#file_history(...)
+        return s:to_run('history-files',
+             \ {
+                 \ 'source':  sk_funs#_recent_files(),
+                 \ 'options': s:reverse_list([
+                                        \ '-m',
+                                        \ '--header-lines',
+                                        \ !empty(expand('%')),
+                                        \ '--prompt',
+                                        \ 'mru文件> ',
+                                      \ ])
+              \},
+             \ a:000
+            \)
     endf
 
 " GFiles[?]
@@ -768,55 +780,61 @@ set cpo&vim
         return v:shell_error ? '' : g_root
     endf
 
-    fun! sk_funs#gitfiles(args, ...)
+    fun! sk_funs#git_files(git_opts, ...)
         let g_root = s:get_git_root()
 
         if empty(g_root)
-            " call s:warn('Not in git repo')
+            call s:warn('不在 git repo')
+            echom '不在 git repo'
             return sk_funs#files(getcwd())
         en
 
-        if g_root =~ '/final/' ||
-           \ g_root =~ '/dotF' ||
-           \ g_root =~ 'tbsi_final'
+        " 别跳到git的root:
+        if g_root =~ '/final/'
+      \ || g_root =~ 'tbsi_final'
+      \ || g_root =~ '/dotF'
             let g_root = getcwd()
-            " 别跳走到root
+        en
+
+        return s:to_run( 'GFiles',
+              \ {
+                \ 'source'  : 'git ls-files ' . a:git_opts . (s:is_win  ? ''   : ' | uniq'),
+                \ 'dir'     : g_root,
+                \ 'options' : '--layout=reverse-list,  -m --prompt "' . g_root . ' > "'
+               \},
+              \ a:000
+            \ )
+    endf
+
+
+    fun! sk_funs#git_status(...)
+        let g_root = s:get_git_root()
+
+        " 别跳到git的root:  (git ls-status 一定要到git root?)
+        if g_root =~ '/final/'
+      \ || g_root =~ 'tbsi_final'
+      \ || g_root =~ '/dotF'
+            let g_root = getcwd()
         en
 
 
-        if a:args != '?'
-            " s:main的第一个参数是随意的name?
-            " return s:main('gfiles', {
-            return s:main('smart_files',
-                  \ {
-                    \ 'source'  : 'git ls-files '.a:args.(s:is_win ? '' : ' | uniq'),
-                    \ 'dir'     : g_root,
-                    \ 'options' : '--layout=reverse,  -m --prompt "'..g_root..' > "'
-                   \},
-                  \ a:000
-                \ )
-        en
-
-        " -----另一个分支:
-        " if a:args == '?'
-
-        " Here be dragons!
-        " We're trying to access the common sink function that
-        " skim#wrap injects to
-        " the options dictionary.
-        let wrapped = skim#wrap({
+        " dangerous!
+            " We're trying to access the common sink function that
+                " sk#wrap injects to
+                " the options dictionary.
+        let wrapped = sk#wrap({
             \ 'source':  'git -c color.status=always status --short --untracked-files=all',
             \ 'dir':     g_root,
             \ 'options': [
                 \ '--ansi',
                 \ '--multi',
                 \ '--nth',
-                \ '2..,..',
+                    \ '2..,..',
                 \ '--tiebreak=index',
                 \ '--prompt',
-                \ 'GitFiles?> ',
+                    \ 'git status> ',
                 \ '--preview',
-                \ 'sh -c "(git diff --color=always -- {-1} | sed 1,4d; cat {-1}) | head -1000"',
+                    \ 'sh -c "(  git diff --color=always -- {-1} | sed 1,4d; cat {-1} )    | head -1000"  ',
                \ ]
         \})
         call s:remove_layout(wrapped)
@@ -833,9 +851,10 @@ set cpo&vim
             return self.common_sink(lines)
         endf
 
-        let wrapped['sink*'] = remove(wrapped, 'newsink')
-        echom "准备return s:main('gfiles-diff', wrapped, a:000)"
-        return s:main('files_git_diff', wrapped, a:000)
+        let wrapped['sink*'] = remove( wrapped, 'newsink')
+        echom "准备return s:to_run"
+
+        return s:to_run('GStatus', wrapped, a:000)
     endf
 
 " Buffers
@@ -921,7 +940,7 @@ set cpo&vim
         let [query, args] = (a:0 && type(a:1) == type(''))
                          \ ? [a:1, a:000[1:]]
                          \ : ['',  a:000]
-        return s:main('buffers',
+        return s:to_run('buffers',
               \ {
                \ 'source':  map(sk_funs#_buflisted_sorted(), 'sk_funs#_format_buffer(v:val)'),
                \ 'sink*':   function('s:bufopen'),
@@ -1039,7 +1058,7 @@ set cpo&vim
 
             " echom "a:000 是: "   a:000
 
-            return s:main(name, opts, a:000)
+            return s:to_run(name, opts, a:000)
         endf
 
             fun! sk_funs#ag_interactive(dir, ...)
@@ -1073,7 +1092,7 @@ set cpo&vim
             let query = empty(a:query) ? '^(?=.)' : a:query
             let args = copy(a:000)
             let ag_opts = len(args) > 1 && type(args[0]) == s:TYPE.string ? remove(args, 0) : ''
-            let command = ag_opts . ' -- ' . skim#shellescape(query)
+            let command = ag_opts . ' -- ' . sk#shellescape(query)
             return call('sk_funs#ag_raw', insert(args, command, 0))
         endf
 
@@ -1112,7 +1131,7 @@ set cpo&vim
                     try
                         let prev_default_command = $SKIM_DEFAULT_COMMAND
                         let $SKIM_DEFAULT_COMMAND = a:grep_command
-                        return s:main(name, opts, a:000)
+                        return s:to_run(name, opts, a:000)
                     finally
                         let $SKIM_DEFAULT_COMMAND = prev_default_command
                     endtry
@@ -1161,7 +1180,7 @@ set cpo&vim
     " query, [[tag commands], options]
     fun! sk_funs#buffer_tags(query, ...)
         let args = copy(a:000)
-        let escaped = skim#shellescape(expand('%'))
+        let escaped = sk#shellescape(expand('%'))
         let null = s:is_win ? 'nul' : '/dev/null'
         let sort = has('unix') && !has('win32unix') && executable('sort') ? '| sort -s -k 5' : ''
         let tag_cmds = (len(args) > 1 && type(args[0]) != type({})) ? remove(args, 0) : [
@@ -1171,7 +1190,7 @@ set cpo&vim
             let tag_cmds = [tag_cmds]
         en
         try
-            return s:main('btags', {
+            return s:to_run('btags', {
             \ 'source':  s:btags_source(tag_cmds),
             \ 'sink*':   function('s:btags_sink'),
             \ 'options': s:reverse_list(['-m', '-d', '\t', '--with-nth', '1,4..', '-n', '1', '--prompt', 'BTags> ', '--query', a:query, '--preview-window', '+{3}-/2'])}, args)
@@ -1246,8 +1265,8 @@ set cpo&vim
         endfor
         let opts = v2_limit < 0 ? ['--algo=v1'] : []
 
-        return s:main('tags', {
-        \ 'source':  'perl '.skim#shellescape(s:bin.tags).' '.join(map(tagfiles, 'skim#shellescape(fnamemodify(v:val, ":p"))')),
+        return s:to_run('tags', {
+        \ 'source':  'perl '.sk#shellescape(s:bin.tags).' '.join(map(tagfiles, 'sk#shellescape(fnamemodify(v:val, ":p"))')),
         \ 'sink*':   function('s:tags_sink'),
         \ 'options': extend(opts, ['--nth', '1..2', '-m', '--tiebreak=begin', '--prompt', 'Tags> ', '--query', a:query])}, a:000)
     endf
@@ -1270,7 +1289,7 @@ set cpo&vim
         en
         let aligned = sort(s:align_lists(items(list)))
         let colored = map(aligned, 's:yellow(v:val[0])."\t".v:val[1]')
-        return s:main('snippets', {
+        return s:to_run('snippets', {
         \ 'source':  colored,
         \ 'options': '--ansi --tiebreak=index -m -n 1 -d "\t"',
         \ 'sink':    function('s:inject_snippet')}, a:000)
@@ -1334,7 +1353,7 @@ set cpo&vim
         silent command
         redir END
         let list = split(cout, "\n")
-        return s:main(
+        return s:to_run(
                     \ 'commands',
                     \{
                         \ 'source':  extend(extend(list[0:0], map(list[1:], 's:format_cmd(v:val)')), s:excmds()),
@@ -1367,7 +1386,7 @@ set cpo&vim
         silent marks
         redir END
         let list = split(cout, "\n")
-        return s:main('marks', {
+        return s:to_run('marks', {
         \ 'source':  extend(list[0:0], map(list[1:], 's:format_mark(v:val)')),
         \ 'sink*':   function('s:mark_sink'),
         \ 'options': '-m --extended --ansi --tiebreak=index --header-lines 1 --tiebreak=begin --prompt "Marks> "'}, a:000)
@@ -1417,13 +1436,13 @@ set cpo&vim
 
 
         let shell_cmd = 'grep -H ".*" '
-                 \ . join(  map(tags, 'skim#shellescape(v:val)')  )
-                 \ . ' | perl -n ' . skim#shellescape(s:helptags_script)
+                 \ . join(  map(tags, 'sk#shellescape(v:val)')  )
+                 \ . ' | perl -n ' . sk#shellescape(s:helptags_script)
                \   . ' | sort'
 
         " echom "shell_cmd 是: "   shell_cmd
 
-        return s:main(
+        return s:to_run(
              \ 'helptags',
               \ {
                 \ 'source'  : shell_cmd,
@@ -1443,7 +1462,7 @@ set cpo&vim
 
 " File types
     fun! sk_funs#filetypes(...)
-        return s:main('filetypes', {
+        return s:to_run('filetypes', {
         \ 'source':  sk_funs#_uniq(sort(map(split(globpath(&rtp, 'syntax/*.vim'), '\n'),
         \            'fnamemodify(v:val, ":t:r")'))),
         \ 'sink':    'setf',
@@ -1477,7 +1496,7 @@ set cpo&vim
                             \ s:format_win(t, w, buffers[w-1])))
             endfor
         endfor
-        return s:main('windows', {
+        return s:to_run('windows', {
         \ 'source':  extend(['Tab Win    Name'], lines),
         \ 'sink':    function('s:windows_sink'),
         \ 'options': '-m --ansi --tiebreak=begin --header-lines=1'}, a:000)
@@ -1528,11 +1547,11 @@ set cpo&vim
             return s:warn('Not in git repository')
         en
 
-        let source = 'git log '.get(g:, 'fzf_commits_log_options', '--color=always '.skim#shellescape('--format=%C(auto)%h%d %s %C(green)%cr'))
+        let source = 'git log '.get(g:, 'fzf_commits_log_options', '--color=always '.sk#shellescape('--format=%C(auto)%h%d %s %C(green)%cr'))
         let current = expand('%')
         let managed = 0
         if !empty(current)
-            call system('git show '.skim#shellescape(current).' 2> '.(s:is_win ? 'nul' : '/dev/null'))
+            call system('git show '.sk#shellescape(current).' 2> '.(s:is_win ? 'nul' : '/dev/null'))
             let managed = !v:shell_error
         en
 
@@ -1540,7 +1559,7 @@ set cpo&vim
             if !managed
                 return s:warn('The current buffer is not in the working tree')
             en
-            let source .= ' --follow '.skim#shellescape(current)
+            let source .= ' --follow '.sk#shellescape(current)
         el
             let source .= ' --graph'
         en
@@ -1566,7 +1585,7 @@ set cpo&vim
             \ ['--preview', 'echo {} | grep -o "[a-f0-9]\{7,\}" | head -1 | xargs git show --format=format: --color=always | head -1000'])
         en
 
-        return s:main(
+        return s:to_run(
             \ a:buffer_local ? 'bcommits' : 'commits',
             \ options,
             \ a:args,
@@ -1649,7 +1668,7 @@ set cpo&vim
                     \ : a:mode == 'o'
                         \ ? 10
                         \ : 12
-        return s:main('maps',
+        return s:to_run('maps',
         \ {
         \ 'source':  colored,
         \ 'sink':    function('s:key_sink'),
@@ -1677,7 +1696,7 @@ set cpo&vim
             \ 'reducer',
             \ function('s:first_line'),
            \ )
-        call skim#run(opts)
+        call sk#run(opts)
     endf
 
     " The default reducer
@@ -1719,11 +1738,11 @@ set cpo&vim
 
     fun! sk_funs#complete(...)
         if a:0 == 0
-            let s:opts = skim#wrap()
+            let s:opts = sk#wrap()
         elseif type(a:1) == s:TYPE.dict
             let s:opts = copy(a:1)
         elseif type(a:1) == s:TYPE.string
-            let s:opts = extend({'source': a:1}, get(a:000, 1, skim#wrap()))
+            let s:opts = extend({'source': a:1}, get(a:000, 1, sk#wrap()))
         el
             echoerr 'Invalid argument: '.string(a:000)
             return ''

@@ -1,21 +1,36 @@
 " 放到autoload好像有问题??
+"\ 从skim(非vim插件)的repo里剥离出来, skim的bin用brew装的就行, skim(非vim插件)的目录在$TOOL,
+"被我backup藏起来了
 
-if exists('g:loaded_skim')
-    finish
-en
+try
+    unlet loaded_skim
+catch
+endtry
+
+if exists('g:loaded_skim')  | finish  | en
 let g:loaded_skim = 1
 
-if empty($SKIM_DEFAULT_COMMAND)
-    let $SKIM_DEFAULT_COMMAND = "fd --type f || git ls-tree -r --name-only HEAD || rg --files || ag -l -g \"\" || find ."
-en
+"\ zshenv设了export SKIM_DEFAULT_COMMAND
+"\ 不再需要:
+
+    "\ if empty($SKIM_DEFAULT_COMMAND)
+    "\     let $SKIM_DEFAULT_COMMAND = "\fd --no-ignore --type f ||
+    "\                            \ git ls-tree -r --name-only HEAD ||
+    "\                            \ rg --files ||
+    "\                            \ ag -l -g \"\" ||
+    "\                            \ find . "
+    "\ en
+
 
 let s:is_win = has('win32') || has('win64')
+
     if s:is_win && &shellslash
         set noshellslash
         let s:base_dir = expand('<sfile>:h:h')
         set shellslash
     el
-        let s:base_dir = expand('<sfile>:h:h')
+        " 本来是git clone来的skim/plugin  (不是skim.vim的)
+        let s:base_dir = '/home/linuxbrew/.linuxbrew'
     en
 
     if s:is_win
@@ -100,8 +115,8 @@ fun! s:skim_tempname()
 endf
 
 let s:layout_keys =  ['window', 'tmux', 'up', 'down', 'left' , 'right']
-let s:skim_rs     =  s:base_dir.'/bin/sk'
-let s:skim_tmux   =  s:base_dir.'/bin/sk-tmux'
+let s:skim_rs     =  s:base_dir . '/bin/sk'
+let s:skim_tmux   =  s:base_dir . '/bin/sk-tmux'
 
 let s:cpo_save = &cpo
 set cpo&vim
@@ -116,38 +131,42 @@ fun! s:default_layout()
                 \ : { 'down': '~40%' }
 endf
 
-fun! skim#install()
-    if s:is_win && !has('win32unix')
-        let script = s:base_dir.'/install.ps1'
-        if !filereadable(script)
-            throw script.' not found'
-        en
-        let script = 'powershell -ExecutionPolicy Bypass -file ' . script
-    el
-        let script = s:base_dir.'/install'
-        if !executable(script)
-            throw script.' not found'
-        en
-        let script .= ' --bin'
-    en
-
-    call s:warn('Running skim installer ...')
-    call system(script)
-    if v:shell_error
-        throw 'Failed to download skim: '.script
-    en
-endf
+" fun! skim#install()
+"     if s:is_win && !has('win32unix')
+"         let script = s:base_dir.'/install.ps1'
+"         if !filereadable(script)
+"             throw script.' not found'
+"         en
+"         let script = 'powershell -ExecutionPolicy Bypass -file ' . script
+"     el
+"         let script = s:base_dir.'/install'
+"         if !executable(script)
+"             throw script.' not found'
+"         en
+"         let script .= ' --bin'
+"     en
+"
+"     call s:warn('Running skim installer ...')
+"     call system(script)
+"     if v:shell_error
+"         throw 'Failed to download skim: '.script
+"     en
+" endf
 
 fun! skim#exec()
+" 叫bin更好?
     if !exists('s:exec')
         if executable(s:skim_rs)
             let s:exec = s:skim_rs
         elseif executable('sk')
             let s:exec = 'sk'
-        elseif input('skim executable not found. Download binary? (y/n) ') =~? '^y'
+        elseif input('skim executable not found. Download binary? (y/n) install被wf注释掉了  ') =~? '^y'
             redraw
-            call skim#install()
-            return skim#exec()
+            echom '被我注释掉了'
+            " call skim#install()
+            "\ 递归?
+            "\ 还是只return函数名?
+            "\ return skim#exec()
         el
             redraw
             throw 'skim executable not found'
@@ -275,11 +294,9 @@ fun! s:get_color(attr, ...)
         \ '^#[a-f0-9]\+'
         \ : '^[0-9]\+$'
 
-
     " echom '----'
     " echom 'a:attr'
     " echom a:attr
-
     for group in a:000
         " echom "group 是: "   group
         let code = synIDattr(
@@ -299,46 +316,43 @@ fun! s:get_color(attr, ...)
 endf
 
 fun! s:ori_colors()
-    let rules = copy(get(
-               \     g:,
-               \     'skim_colors',
-               \     {},
-               \    )
-               \)
+    " Colors: g:skim_colors
+        " 在这里设了:
+        " /home/wf/dotF/cfg/nvim/colors/leo_light.vim
+    let rules = copy( get( g:, 'skim_colors', {} )  )
 
     let colors = join(
                 \ map(
                     \ items(  filter(
                                     \ map(
-                                        \ rules,
-                                        \ 'call("s:get_color", v:val)',
-                                       \ ),
-                                    \ '!empty(v:val)',
+                                        \ rules                     ,
+                                        \ 'call("s:get_color", v:val)' ,
+                                       \ )          ,
+                                    \ '!empty(v:val)' ,
                                    \ )
-                          \),
+                          \)       ,
                     \ 'join(v:val, ":")'
                     \),
-                \
-                \ ',',
+                \ ','
                \ )
 
     " echom "skim#shellescape('--color='..colors) 是: "   skim#shellescape('--color='..colors)
-    " '--color=current          : #444444,
-    "          info             : #20a780,
-    "          spinner          : #807030,
-    "          matched          : #444444,
-    "          prompt           : #805f00,
-    "          current_bg       : #fdf6e3,
-    "          fg               : #909f90,
-    "          header           : #909f90,
-    "          marker           : #8f3057,
-    "          current_match_bg : #444444,
-    "          current_match    : #f0f9e3,
-    "          pointer          : #12345'
+        " '--color=current          : #444444,
+        "          info             : #20a780,
+        "          spinner          : #807030,
+        "          matched          : #444444,
+        "          prompt           : #805f00,
+        "          current_bg       : #fdf6e3,
+        "          fg               : #909f90,
+        "          header           : #909f90,
+        "          marker           : #8f3057,
+        "          current_match_bg : #444444,
+        "          current_match    : #f0f9e3,
+        "          pointer          : #12345'
 
     return empty(colors) ?
             \ ''
-            \ : skim#shellescape('--color='..colors)
+            \ : skim#shellescape('--color=' . colors)
 endf
 
 fun! s:validate_layout(layout)
@@ -391,11 +405,9 @@ fun! skim#wrap(...)
         en
     en
 
-    " Colors: g:skim_colors
-        " 在这里设了:
-        " /home/wf/dotF/cfg/nvim/colors/leo_light.vim
 
-    let opts.options = s:ori_colors()..' '..s:evaluate_opts(get(opts, 'options', ''))
+    let opts.options =  s:evaluate_opts( get(opts, 'options', '') )
+    "\ let opts.options = s:ori_colors() . ' ' . s:evaluate_opts( get(opts, 'options', '') )
     " echom "opts.options 是: "   opts.options
 
     " History: g:skim_history_dir
@@ -444,26 +456,32 @@ fun! skim#run(...) abort
         let optstr = s:evaluate_opts(get(dict, 'options', ''))
         try
             let skim_exec = skim#shellescape(skim#exec())
+            "\ /home/linuxbrew/.linuxbrew//bin/sk
+            "\ echom "skim_exec 是: "   skim_exec
         catch
             throw v:exception
+            echom "v:exception 是: "   v:exception
         endtry
 
-        if !has_key(dict, 'dir')
-            let dict.dir = s:skim_getcwd()
-        en
-        if has('win32unix') && has_key(dict, 'dir')
-            let dict.dir = fnamemodify(dict.dir, ':p')
-        en
+        if !has_key(dict, 'dir')  | let dict.dir = s:skim_getcwd()  | en
+
+        if has('win32unix') && has_key(dict, 'dir')  | let dict.dir = fnamemodify(dict.dir, ':p')  | en
 
         if has_key(dict, 'source')
             let source = dict.source
+            "\ echom "source 是: "   source
             let type = type(source)
-            if type == 1
-                let prefix = '( '.source.' )|'
-            elseif type == 3
+
+            if type == v:t_string
+                let prefix = '( ' . source . ' )|'
+
+            elseif type == v:t_list
                 let temps.input = s:skim_tempname()
-                call writefile(map(source, '<SID>enc_to_cp(v:val)'), temps.input)
-                let prefix = (s:is_win ? 'type ' : 'cat ').skim#shellescape(temps.input).'|'
+                call writefile(
+                    \ map(source, '<SID>enc_to_cp(v:val)'),
+                    \ temps.input,
+                   \ )
+                let prefix = (s:is_win ? 'type ' : 'cat ') .skim#shellescape(temps.input) .'|'
             el
                 throw 'Invalid source type'
             en
@@ -476,30 +494,59 @@ fun! skim#run(...) abort
                     \ !(has('nvim') || s:is_win || has('win32unix') || s:present(dict, 'up', 'left', 'right', 'window')) &&
                     \ executable('tput') && filereadable('/dev/tty')
         let has_vim8_term = has('terminal') && has('patch-8.0.995')
-        let has_nvim_term = has('nvim-0.2.1') || has('nvim') && !s:is_win
-        let use_term = has_nvim_term ||
-            \ has_vim8_term && !has('win32unix') && (has('gui_running') || s:is_win || !use_height && s:present(dict, 'down', 'up', 'left', 'right', 'window'))
+        let has_nvim_term = 1
+        " let has_nvim_term = has('nvim-0.2.1') || has('nvim') && !s:is_win
+        let use_term = has_nvim_term
+                \ || has_vim8_term
+                \ && !has('win32unix')
+                \ && (has('gui_running')
+                \ || s:is_win
+                \ || !use_height
+                \ && s:present(dict, 'down', 'up', 'left', 'right', 'window'))
+
         let use_tmux = (has_key(dict, 'tmux') || (!use_height && !use_term || prefer_tmux) && !has('win32unix') && s:splittable(dict)) && s:tmux_enabled()
         if prefer_tmux && use_tmux
             let use_height = 0
-            let use_term = 0
+            let use_term   = 0
         en
         if use_height
             let height = s:calc_size(&lines, dict.down, dict)
-            let optstr .= ' --height='.height
+            let optstr .= ' --height=' . height
         elseif use_term
             let optstr .= ' --no-height'
         en
-        let command = prefix.(use_tmux ? s:skim_tmux(dict) : skim_exec).' '.optstr.' > '.temps.result
+        let command = prefix . (use_tmux
+                                \ ? s:skim_tmux(dict)
+                                \ : skim_exec)
+                       \ . ' ' . optstr . ' > ' . temps.result
 
         if use_term
             return s:execute_term(dict, command, temps)
+
+        "\ echom "command, 是: "   command
+            " ( git ls-files  | uniq )|
+            " \ '/home/linuxbrew/.linuxbrew//bin/sk'
+            " \ --history
+            " \ '/data2/wf2/.cache_wf/nvim/skim_history/GFiles'
+            " \ '--color=border:#f0f0e0,current:#000000,matched_bg:#e0e0df,pointer_bg:#f0f0e0,info:#444444,bg:#f0f0e0,spinner:#444444,marker_bg:#f0f0e0,gutter:#ff0000,matched:#000000,prompt:#444444,current_bg:#e0e9d0,fg:#444444,info_bg:#f0f0e0,header:#444444,marker:#444444,current_match_bg:#d0e0da,current_match:#000000,pointer:#444444,header_bg:#f0f0e0,prompt_bg:#f0f0e0,spinner_bg:#f0f0e0'
+            " \ --layout=reverse-list,
+            " \ -m  --prompt "/home/wf/.local/share/nvim/PL/sk > "
+            " \ '--preview-window'
+            " \ 'right'
+            " \ '--preview'
+            " \ ''\''/home/wf/.local/share/nvim/PL/bin/preview.sh'\'' {}'
+            " \ --expect=ctrl-v,ctrl-x,ctrl-t
+            " \ --no-height
+            " \ > /tmp/nvimuscF4Q/22
+        el
+            let lines = use_tmux
+                    \ ? s:execute_tmux(dict, command, temps)
+                    \ : s:execute(dict, command, use_height, temps)
+
+            call s:callback(dict, lines)
+            return lines
         en
 
-        let lines = use_tmux ? s:execute_tmux(dict, command, temps)
-                                     \ : s:execute(dict, command, use_height, temps)
-        call s:callback(dict, lines)
-        return lines
     finally
         let [&shell, &shellslash, &shellcmdflag, &shellxquote] = [shell, shellslash, shellcmdflag, shellxquote]
     endtry
@@ -566,21 +613,33 @@ fun! s:dopopd()
         return
     en
 
-    " FIXME: We temporarily change the working directory to 'dir' entry
-    " of options dictionary (set to the current working directory if not given)
-    " before running skim.
-    "
-    " e.g. call skim#run({'dir': '/tmp', 'source': 'ls', 'sink': 'e'})
-    "
-    " After processing the sink function, we have to restore the current working
-    " directory. But doing so may not be desirable if the function changed the
-    " working directory on purpose.
-    "
-    " So how can we tell if we should do it or not? A simple heuristic we use
-    " here is that we change directory only if the current working directory
-    " matches 'dir' entry. However, it is possible that the sink function did
-    " change the directory to 'dir'. In that case, the user will have an
-    " unexpected result.
+    " FIXME:
+        " We temporarily change the working directory to 'dir' entry
+        " of options dictionary
+        " (set to the current working directory if not given)
+        " before running skim.
+        "
+        " e.g. call skim#run({
+                   "\  \ 'dir': '/tmp',
+                   "\  \ 'source': 'ls',
+                   "\  \ 'sink': 'e',
+                   "\ \ })
+        "
+        " After processing the sink function,
+            " we have to restore the current working  directory.
+        " But if the function changed the  working directory
+        " on purpose,
+            "  doing so may not be desirable
+        "
+        " So how can we tell
+        " if we should do it or not?
+        " A simple heuristic we use  here is that
+            " we change directory only if the current working directory
+            " matches 'dir' entry.
+        " However, it is possible that the sink function did  change the directory to 'dir'.
+        " In that case,
+            " the user will have an  unexpected result.
+
     if s:skim_getcwd() ==# w:skim_pushd.dir && (!&autochdir || w:skim_pushd.bufname ==# bufname(''))
         exe     w:skim_pushd.command s:escape(w:skim_pushd.origin)
     en
@@ -761,22 +820,29 @@ endf
 
 fun! s:execute_term(dict, command, temps) abort
     let winrest = winrestcmd()
-    let pbuf = bufnr('')
+    let pbuf    = bufnr('')
     let [ppos, winopts, is_popup] = s:split(a:dict)
     call s:use_sh()
     let b:skim = a:dict
-    let skim = { 'buf': bufnr(''), 'pbuf': pbuf, 'ppos': ppos, 'dict': a:dict, 'temps': a:temps,
-                        \ 'winopts': winopts, 'winrest': winrest, 'lines': &lines,
-                        \ 'columns': &columns, 'command': a:command }
+    let skim = {
+        \ 'buf'     : bufnr('') ,
+        \ 'pbuf'    : pbuf      ,
+        \ 'ppos'    : ppos      ,
+        \ 'dict'    : a:dict    ,
+        \ 'temps'   : a:temps   ,
+        \ 'winopts' : winopts   ,
+        \ 'winrest' : winrest   ,
+        \ 'lines'   : &lines    ,
+        \ 'columns' : &columns  ,
+        \ 'command' : a:command ,
+       \ }
+
     fun! skim.switch_back(inplace)
-        if a:inplace && bufnr('') == self.buf
-            if bufexists(self.pbuf)
-                exe     'keepalt b' self.pbuf
-            en
+        if a:inplace
+      \ && bufnr('') == self.buf
+            if bufexists(self.pbuf)  | exe     'keepalt b' self.pbuf  | en
             " No other listed buffer
-            if bufnr('') == self.buf
-                enew
-            en
+            if bufnr('') == self.buf  | enew  | en
         en
     endf
     fun! skim.on_exit(id, code, ...)
@@ -823,30 +889,32 @@ fun! s:execute_term(dict, command, temps) abort
             let command = a:command
         en
         let command .= s:term_marker
-        if has('nvim')
-            call termopen(command, skim)
-        el
-            let term_opts = {'exit_cb': function(skim.on_exit)}
-            if is_popup
-                let term_opts.hidden = 1
-            el
-                let term_opts.curwin = 1
-            en
-            let skim.buf = term_start([&shell, &shellcmdflag, command], term_opts)
-            if is_popup && exists('#TerminalWinOpen')
-                doautocmd <nomodeline> TerminalWinOpen
-            en
-            if !has('patch-8.0.1261') && !s:is_win
-                call term_wait(skim.buf, 20)
-            en
-        en
+                        " 这货是  ;#SKIM
+
+        " set shellcmdflag+=-i  导致报错
+        call termopen(command, skim)
+        " set shellcmdflag-=-i
+
+        " todo:
+            " 参考jobstart() 的callback, 看为啥有个不碍事的报错
+
+        redir >> ~/.t/2c.vim
+            silent  echom "skim 是:"
+            silent  echom  skim
+            silent  echom ""
+            silent  echom "command 是:"
+            silent  echom command
+        redir END
+        "\
     finally
         call s:dopopd()
     endtry
-    setl     nospell bufhidden=wipe nobuflisted nonumber
+
+    setl nospell bufhidden=wipe nobuflisted nonumber
     setf skim
     startinsert
     return []
+    " return 任意东西东西都行,  只要有return?
 endf
 
 fun! s:collect(temps) abort
@@ -1030,7 +1098,7 @@ fun! s:shortpath()
     return empty(short) ? '~'.slash : short . (short =~ escape(slash, '\').'$' ? '' : slash)
 endf
 
-fun! s:cmd(bang, ...) abort
+fun! s:sk_cmd(bang, ...) abort
     let args = copy(a:000)
     let opts = { 'options': ['--multi'] }
     if len(args) && isdirectory(expand(args[-1]))
@@ -1052,13 +1120,13 @@ fun! s:cmd(bang, ...) abort
     call extend(opts.options, ['--prompt', prompt])
     call extend(opts.options, args)
     call skim#run(skim#wrap(
-                            \ 'SKIM',
-                            \ opts,
-                            \ a:bang,
-                           \ ))
+                    \ 'SKIM',
+                     \ opts,
+                     \ a:bang,
+                    \ ))
 endf
 
-com!     -nargs=* -complete=dir -bang SK call s:cmd(<bang>0, <f-args>)
+com!     -nargs=* -complete=dir -bang SK call s:sk_cmd(<bang>0, <f-args>)
 
 let &cpo = s:cpo_save
 unlet s:cpo_save

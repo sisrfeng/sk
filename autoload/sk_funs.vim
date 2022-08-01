@@ -798,12 +798,12 @@ set cpo&vim
 
         return s:to_run( 'GFiles',
               \ {
-                \ 'source'  : 'git ls-files ' . a:git_opts . (s:is_win  ? ''   : ' | uniq'),
+                \ 'source'  : 'git ls-files ' . a:git_opts . ' | uniq',
                 \ 'dir'     : g_root,
                 \ 'options' : '--layout=reverse-list,  -m --prompt "' . g_root . ' > "'
                \},
               \ a:000
-            \ )
+             \ )
     endf
 
 

@@ -3,10 +3,6 @@
 
 " 放到autoload好像有问题??
 
-try
-    unlet loaded_skim
-catch
-endtry
 
 if exists('g:loaded_skim')  | finish  | en
 let g:loaded_skim = 1
@@ -422,13 +418,7 @@ fun! sk#run(...) abort
 
         let prefer_tmux = get(g:, 'skim_prefer_tmux', 0)
                     \ || has_key(dict, 'tmux')
-        let use_height = has_key(dict, 'down')
-                    \ && !has('gui_running')
-                    \ && !(  has('nvim') ||
-                            \ has('win32unix') ||
-                            \ s:present(dict, 'up', 'left', 'right', 'window'))
-                    \ &&   executable('tput')
-                    \ && filereadable('/dev/tty')
+        let use_height = 0
 
         let has_vim8_term = has('terminal') && has('patch-8.0.995')
         let has_nvim_term = 1
@@ -542,7 +532,7 @@ fun! s:pushd(dict)
 endf
 
 
-fun! s:dopopd()
+fun! s:do_popd()
     if !exists('w:skim_pushd')  | return  | en
 
     if s:skim_getcwd() ==# w:skim_pushd.dir
@@ -582,7 +572,7 @@ endf
 
 aug  skim_popd
     au!
-    au      WinEnter * call s:dopopd()
+    au      WinEnter * call s:do_popd()
 aug  END
 
 
@@ -605,7 +595,7 @@ en
 fun! s:exit_handler(code, command, ...)
     if a:code == 130
         return 0
-    elseif has('nvim') && a:code == 129
+    elseif  a:code == 129
         " When deleting the terminal buffer while skim is still running,
         " Nvim sends SIGHUP.
         return 0
@@ -822,7 +812,7 @@ fun! s:execute_term(dict, command, temps) abort
             silent  echom cmd
         redir END
     finally
-        call s:dopopd()
+        call s:do_popd()
     endtry
 
     setl nospell bufhidden=wipe nobuflisted nonumber
@@ -844,94 +834,70 @@ endf
 
 fun! s:callback(dict, lines) abort
     let popd = has_key(a:dict, 'pushd')
-    if popd
-        let w:skim_pushd = a:dict.pushd
-    en
+    if popd  | let w:skim_pushd = a:dict.pushd  | en
 
     try
-        if has_key(a:dict, 'sink')
+        if has_key( a:dict, 'sink')
             for line in a:lines
-                if type(a:dict.sink) == type(v:t_func)
+                if type(a:dict.sink) == v:t_func
                     call a:dict.sink(line)
                 el
-                    exe     a:dict.sink s:escape(line)
+                    exe     a:dict.sink  s:escape(line)
                 en
             endfor
         en
 
-        if has_key(a:dict, 'sink*')  | call a:dict['sink*'](a:lines)  | en
+        if has_key(a:dict, 'sink*')
+            call a:dict['sink*'](a:lines)
+        en
 
     catch
-        if stridx(v:exception, ':E325:') < 0
-            echoerr v:exception
-        en
+        if stridx(v:exception, ':E325:') == -1  | echoerr v:exception  | en
     endtry
 
     " We may have opened a new window or tab
     if popd
         let w:skim_pushd = a:dict.pushd
-        call s:dopopd()
+        call s:do_popd()
     en
 endf
 
-if has('nvim')
-    function s:create_popup(hl, opts) abort
-        let buf    = nvim_create_buf(v:false, v:true)
-        let opts   = extend(
-            \ {'relative': 'editor', 'style': 'minimal'},
-            \ a:opts,
-           \ )
-        let border = has_key(opts, 'border') ? remove(opts, 'border') : []
-        let win = nvim_open_win(buf, v:true, opts)
+function s:create_popup(hl, opts) abort
+    let buf    = nvim_create_buf(v:false, v:true)
+    let opts   = extend(
+        \ {'relative': 'editor', 'style': 'minimal'},
+        \ a:opts,
+       \ )
+    let border = has_key(opts, 'border') ? remove(opts, 'border') : []
+    let win = nvim_open_win(buf, v:true, opts)
 
-        " setwinvar({nr}, {varname}, {val})
-        " winhighlight  set winhighlight=Normal:Comment,NormalNC:MyNormalNC
+    " setwinvar({nr}, {varname}, {val})
+    " winhighlight  set winhighlight=Normal:Comment,NormalNC:MyNormalNC
 
-        call setwinvar(
-            \ win,
-            \ '&winhighlight',
-            \ 'NormalFloat:'..a:hl,
-            "\ \ 'NormalFloat:'..'DebuG',
+    call setwinvar(
+        \ win,
+        \ '&winhighlight',
+        \ 'NormalFloat:'..a:hl,
+        "\ \ 'NormalFloat:'..'DebuG',
+       \ )
+            " echom "a:hl 是: "   a:hl
+            " Normal
+    call setwinvar(
+        \ win,
+        \ '&colorcolumn',
+        \ '',
+       \ )
+    if !empty(border)
+        call nvim_buf_set_lines(
+            \ buf,
+            \ 0,
+            \ -1,
+            \ v:true,
+            \ border,
            \ )
-                " echom "a:hl 是: "   a:hl
-                " Normal
-        call setwinvar(
-            \ win,
-            \ '&colorcolumn',
-            \ '',
-           \ )
-        if !empty(border)
-            call nvim_buf_set_lines(
-                \ buf,
-                \ 0,
-                \ -1,
-                \ v:true,
-                \ border,
-               \ )
-        en
-        return buf
-    endf
-el
-    fun! s:create_popup(hl, opts) abort
-        let is_frame = has_key(a:opts, 'border')
-        let s:popup_create = {buf -> popup_create(buf, #{
-            \ line: a:opts.row,
-            \ col: a:opts.col,
-            \ minwidth: a:opts.width,
-            \ minheight: a:opts.height,
-            \ zindex: 50 - is_frame,
-        \ })}
-        if is_frame
-            let id = s:popup_create('')
-            call setwinvar(id, '&wincolor', a:hl)
-            call setbufline(winbufnr(id), 1, a:opts.border)
-            exe     'autocmd BufWipeout * ++once call popup_close('..id..')'
-            return winbufnr(id)
-        el
-            au      TerminalOpen * ++once call s:popup_create(str2nr(expand('<abuf>')))
-        en
-    endf
-en
+    en
+    return buf
+endf
 
 fun! s:popup(opts) abort
     " Support ambiwidth == 'double'
@@ -940,15 +906,13 @@ fun! s:popup(opts) abort
     " Size and position
     let width = min([max([8, a:opts.width > 1 ? a:opts.width : float2nr(&columns * a:opts.width)]), &columns])
     let width += width % ambidouble
-    let height = min([max([4, a:opts.height > 1 ? a:opts.height : float2nr(&lines * a:opts.height)]), &lines - has('nvim')])
+    let height = min([max([4, a:opts.height > 1 ? a:opts.height : float2nr(&lines * a:opts.height)]), &lines - 1 ])
     let row = float2nr(get(a:opts, 'yoffset', 0.5) * (&lines - height))
     let col = float2nr(get(a:opts, 'xoffset', 0.5) * (&columns - width))
 
     " Managing the differences
-    let row = min([max([0, row]), &lines - has('nvim') - height])
+    let row = min([max([0, row]), &lines - 1 - height])
     let col = min([max([0, col]), &columns - width])
-    let row += !has('nvim')
-    let col += !has('nvim')
 
     " Border style
     let style = tolower(get(a:opts, 'border', 'rounded'))
@@ -994,9 +958,7 @@ fun! s:popup(opts) abort
         \ 'height' : height + shift.height ,
        \ })
 
-    if has('nvim')
-        exe     'autocmd BufWipeout <buffer> bwipeout '..frame
-    en
+    exe     'autocmd BufWipeout <buffer> bwipeout '..frame
 endf
 
 let s:default_action = {

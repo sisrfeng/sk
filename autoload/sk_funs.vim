@@ -506,21 +506,21 @@ let s:cpo_save = &cpo  | set cpo&vim
 
         if display_bufnames
             let bufnames = {}
-            for b in s:buflisted()
-                let bufnames[b] = pathshorten(fnamemodify(bufname(b), ":~:."))
-                let longest_name = max([longest_name, len(bufnames[b])])
+            for buf in s:buflisted()
+                let bufnames[buf] = pathshorten(fnamemodify(bufname(buf), ":~:."))
+                let longest_name = max([longest_name, len(bufnames[buf])])
             endfor
         en
 
         let len_bufnames = min([15, longest_name])
-        for b in s:buflisted()
-            let lines = getbufline(b, 1, "$")
+        for buf in s:buflisted()
+            let lines = getbufline(buf, 1, "$")
             if empty(lines)
-                let path = fnamemodify(bufname(b), ':p')
+                let path = fnamemodify(bufname(buf), ':p')
                 let lines = filereadable(path) ? readfile(path) : []
             en
             if display_bufnames
-                let bufname = bufnames[b]
+                let bufname = bufnames[buf]
                 if len(bufname) > len_bufnames + 1
                     let bufname = '…' . bufname[-len_bufnames+1:]
                 en
@@ -532,10 +532,10 @@ let s:cpo_save = &cpo  | set cpo&vim
                 let bufname = ''
             en
             let linefmt = s:blue("%2d\t", "TabLine")."%s".s:yellow("\t%4d ", "LineNr")."\t%s"
-            call extend(b == buf ? cur : rest,
+            call extend(buf == buf ? cur : rest,
             \ filter(
             \   map(lines,
-            \       '(!a:all && empty(v:val)) ? "" : printf(linefmt, b, bufname, v:key + 1, v:val)'),
+            \       '(!a:all && empty(v:val)) ? "" : printf(linefmt, buf, bufname, v:key + 1, v:val)'),
             \   'a:all || !empty(v:val)'))
         endfor
         return [display_bufnames, extend(cur, rest)]
@@ -858,14 +858,14 @@ endf
     endf
 
 " Buffers
-    fun! s:find_open_window(b)
+    fun! s:find_open_window(buf)
         let [tcur, tcnt] = [tabpagenr() - 1, tabpagenr('$')]
         for toff in range(0, tabpagenr('$') - 1)
             let t = (tcur + toff) % tcnt + 1
             let buffers = tabpagebuflist(t)
             for w in range(1, len(buffers))
-                let b = buffers[w - 1]
-                if b == a:b
+                let buf = buffers[w - 1]
+                if buf == a:buf
                     return [t, w]
                 en
             endfor
@@ -882,9 +882,9 @@ endf
         if len(a:lines) < 2
             return
         en
-        let b = matchstr(a:lines[1], '\[\zs[0-9]*\ze\]')
+        let buf = matchstr(a:lines[1], '\[\zs[0-9]*\ze\]')
         if empty(a:lines[0]) && get(g:, 'fzf_buffers_jump')
-            let [t, w] = s:find_open_window(b)
+            let [t, w] = s:find_open_window(buf)
             if t
                 call s:jump(t, w)
                 return
@@ -903,36 +903,49 @@ endf
             " let cmd = s:edit_cmd(a:lines[0], '-tab split ')
         en
 
-        exe   'buffer' b
+        exe   'buffer' buf
     endf
 
-    fun! sk_funs#_format_buffer(b)
-        let name = bufname(a:b)
+    fun! sk_funs#_format_buffer(buf)
+        let name = bufname(a:buf)
         let line = exists('*getbufinfo')
-                \ ? getbufinfo(a:b)[0]['lnum']
+                \ ? getbufinfo(a:buf)[0]['lnum']
                 \ : 0
 
         let name = empty(name)
                 \ ? 'No Name'
                 \ : fnamemodify(name, ":p:~:.")
 
-        let flag = a:b == bufnr('')
+        let flag = a:buf == bufnr('')
                 \ ? s:blue('%', 'Conditional')
-                \ : (a:b == bufnr('#')
+                \ : (a:buf == bufnr('#')
                         \ ? s:magenta('#', 'Special')
                         \ : ' ')
 
-        let modified = getbufvar(a:b, '&modified')
-                    \ ? s:red(' [+]', 'Exception')
+
+
+        let modified = getbufvar(a:buf, '&modified')
+                    \ ? s:red('[+]', 'In_BackticK')
                     \ : ''
 
-        let readonly = getbufvar(a:b, '&modifiable')
+        let readonly = getbufvar(a:buf, '&modifiable')
                     \ ? ''
-                    \ : s:green(' [RO]', 'Constant')
+                    \ : s:green(' [RO]', 'Normal')
 
         let opts2 = join(filter([modified, readonly], '!empty(v:val)'), '')
-        let target = line == 0 ? name : name.':'.line
-        return s:strip(printf("%s\t%d\t[%s] %s\t%s\t%s", target, line, s:yellow(a:b, 'Number'), flag, name, opts2))
+        let target = line == 0
+                \ ? name
+                \ : name . ':' . line
+        return s:strip(printf(
+                        \ "%s\t%d\t[%s] %s\t%s\t%s",
+                        \ target,
+                        \ line,
+                        \ s:yellow(a:buf, 'Number'),
+                        \ flag,
+                        \ name,
+                        \ opts2,
+                    \ )
+             \)
     endf
 
     fun! s:sort_buffers(...)

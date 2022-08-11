@@ -1,7 +1,7 @@
-" 说明详见:  /home/wf/.local/share/nvim/PL/skim4vim/skim的非vim插件的配合vim的方法.md
+" 说明详见:   /home/wf/.local/share/nvim/PL/sk/detail_Readme.md
 
-let s:cpo_save = &cpo
-set cpo&vim
+
+let s:cpo_save = &cpo  | set cpo&vim
 
 " Common
     let s:min_version = '0.9.3'
@@ -203,9 +203,10 @@ set cpo&vim
 
         if index(tokens, 'reverse') < 0
             return extend(['--layout=reverse-list'], a:opt_list)
+        el
+            return a:opt_list
         en
 
-        return a:opt_list
     endf
 
     fun! s:wrap(name, opts, bang)
@@ -308,31 +309,29 @@ set cpo&vim
         return filter(range(1, bufnr('$')), 'buflisted(v:val) && getbufvar(v:val, "&filetype") != "qf"')
     endf
 
-    fun! s:to_run(name, opts, extra)
+    fun! s:to_run(name, opts, opts2)
         call s:check_requirements()
 
-        let [extra, bang] = [{}, 0]
-        if len(a:extra) <= 1
-            let first = get(a:extra, 0, 0)
+        let [opts2, bang] = [{}, 0]
+        if len(a:opts2) <= 1
+            let first = get(a:opts2, 0, 0)
             if type(first) == s:TYPE.dict
-                let extra = first
+                let opts2 = first
             el
                 let bang = first
             en
-        elseif len(a:extra) == 2
-            let [extra, bang] = a:extra
+        elseif len(a:opts2) == 2
+            let [opts2, bang] = a:opts2
         el
-            throw '调用main时, extra这个list包含的参数个数只能是0,1或2'
+            throw '调用main时, opts2这个list包含的参数个数只能是0,1或2'
         en
 
-        let ex_opt_list  = has_key(extra, 'options')
-                            \ ? remove(extra, 'options')
+        let ex_opt_list  = has_key(opts2, 'options')
+                            \ ? remove(opts2, 'options')
                             \ : ''
-        let merged_opts = extend(copy(a:opts), extra)
+        let merged_opts = extend(copy(a:opts), opts2)
         call s:merge_opts(merged_opts, ex_opt_list)
 
-        " todo: 默认把所有options 经过s:reverse-list()  过滤
-            "( 加 --layout=reverse-list)
         return sk#run( s:wrap(
                        \ a:name,
                        \ merged_opts,
@@ -423,56 +422,54 @@ set cpo&vim
     endf
 
 " Files
-    fun! s:shortpath()
+    fun! s:cwd_short()
         let short = fnamemodify(getcwd(), ':~:.')
-        " ~代替/home/XXX
+        " ¿~ ¿代替/home/XXX
 
         if !has('win32unix')  | let short = pathshorten(short)  | en
 
-        let slash = (s:is_win && !&shellslash)
-                \ ? '\'
-                \ : '/'
-        return empty(short) ? '~'.slash : short . (short =~ escape(slash, '\').'$' ? '' : slash)
+        return empty(short)
+            \ ? '~/'
+            \ : short . (short =~  '/$'
+                            \ ? ''
+                            \ : '/')
     endf
 
     fun! sk_funs#files(dir, ...)
         let arg_dict = {}
         if !empty(a:dir)
             if !isdirectory(expand(a:dir))  | return s:warn('Invalid directory')  | en
-            let slash = (s:is_win && !&shellslash)
-                    \ ? '\\'
-                    \ : '/'
             let dir = substitute(
-                \ a:dir,
-                \ '[/\\]*$',
-                \ slash,
-                \ '',
+                \ a:dir     ,
+                \ '[/\\]*$' ,
+                \ '/'       ,
+                \ ''        ,
                \ )
             let arg_dict.dir = dir
         el
-            let dir = s:shortpath()
+            let dir = s:cwd_short()
         en
 
         let arg_dict.options = [
-                       \ '--layout=reverse-list'                        ,
-                       \ '-m'                                           ,
                        \ '--prompt'                                     ,
-                       \ strwidth(dir) < &columns / 2 - 20 ? dir : '> ' ,
+                           \ strwidth(dir) < (&columns / 2 - 20)
+                                        \ ? '找文件   ' . dir
+                                        \ : '> ' ,
                      \ ]
 
         call s:merge_opts(
-            \ arg_dict,
-            \ get(g:, 'fzf_files_options', []),
-           \ )
-                      "\ fzf_files_options : 没有说明
+                 \ arg_dict,
+                 \ get(g:, 'fzf_files_options', []),
+                \ )
+                           "\ fzf_files_options : 没有说明
 
-        " 参考: return s:to_run('blines'
-        " a:000等价于那里的args
         return s:to_run(
-               \ 'wf_files',
+               \ 'wf_smart_files',
                 \ arg_dict,
                 \ a:000,
               \ )
+        " 参考: return s:to_run('blines'
+                  " a:000等价于那里的args
     endf
 
 " Lines
@@ -552,18 +549,15 @@ set cpo&vim
                    \ {
                     \ 'source':  lines,
                     \ 'sink*':   function('s:line_handler'),
-                    \ 'options': s:reverse_list([
-                                                \ '--no-multi',
-                                                \ '--tiebreak=index',
-                                                \ '--prompt',
-                                                    \ 'Lines> ',
-                                                \ '--ansi',
-                                                \ '--extended',
-                                                \ '--nth='.nth.'..',
-                                                \ '--tabstop=1',
-                                                \ '--query',
-                                                \ query,
-                                               \ ])
+                    \ 'options': [
+                                \ '--no-multi',
+                                \ '--tiebreak=index',
+                                \ '--prompt',
+                                    \ 'Lines> ',
+                                \ '--nth='.nth.'..',
+                                \ '--tabstop=1',
+                                \ '--query',  query,
+                             \ ]
                    \},
                   \ args
                 \ )
@@ -651,11 +645,8 @@ set cpo&vim
                \ 'options' : s:reverse_list([
                    \ '--no-multi',
                    \ '--tiebreak=index',
-                   \ '--multi',
                    \ '--prompt',
                        \ '本文件> ',
-                   \ '--ansi',
-                   \ '--extended',
                    \ '--nth=2..',
                    \ '--tabstop=1',
                   \ ])
@@ -675,7 +666,7 @@ set cpo&vim
         return s:to_run('colors', {
         \ 'source':  sk_funs#_uniq(map(colors, "substitute(fnamemodify(v:val, ':t'), '\\..\\{-}$', '', '')")),
         \ 'sink':    'colo',
-        \ 'options': '-m --prompt="Colors> "'
+        \ 'options': '--prompt="Colors> "'
         \}, a:000)
     endf
 
@@ -683,7 +674,7 @@ set cpo&vim
     fun! sk_funs#locate(query, ...)
         return s:to_run('locate', {
         \ 'source':  'locate '.a:query,
-        \ 'options': '-m --prompt "Locate> "'
+        \ 'options': '--prompt "Locate> "'
         \}, a:000)
     endf
 
@@ -738,11 +729,15 @@ set cpo&vim
     endf
 
     fun! sk_funs#command_history(...)
-        return s:to_run('history-command', {
-        \ 'source':  s:history_source(':'),
-        \ 'sink*':   function('s:cmd_history_sink'),
-        \ 'options': '--layout=reverse-list  -m --ansi --prompt="Hist:> " --header-lines=1 --expect=ctrl-e --tiebreak=index'
-        \ },
+        return s:to_run('history-command',
+               \ {
+                \ 'source':  s:history_source(':'),
+                \ 'sink*':   function('s:cmd_history_sink'),
+                \ 'options':    '--prompt="历史命令> "'
+                            \ .  ' --header-lines=1'
+                            \ .  ' --expect=ctrl-e'
+                            \ .  ' --tiebreak=index'
+                \ },
         \ a:000)
     endf
 
@@ -751,37 +746,41 @@ set cpo&vim
     endf
 
     fun! sk_funs#search_history(...)
-        return s:to_run('history-search', {
-        \ 'source':  s:history_source('/'),
-        \ 'sink*':   function('s:search_history_sink'),
-        \ 'options': '--layout=reverse-list -m --ansi --prompt="Hist/> " --header-lines=1 --expect=ctrl-e --tiebreak=index'}, a:000)
+        return s:to_run('history-search',
+                \ {
+                 \ 'source':  s:history_source('/'),
+                 \ 'sink*':   function('s:search_history_sink'),
+                 \ 'options': '--prompt="Hist/> " --header-lines=1 --expect=ctrl-e --tiebreak=index'
+                \ },
+                \ a:000
+                \)
     endf
 
     fun! sk_funs#file_history(...)
-        return s:to_run('history-files',
-             \ {
-                 \ 'source':  sk_funs#_recent_files(),
-                 \ 'options': s:reverse_list([
-                                        \ '-m',
-                                        \ '--header-lines',
-                                        \ !empty(expand('%')),
-                                        \ '--prompt',
-                                        \ 'mru文件> ',
-                                      \ ])
-              \},
-             \ a:000
-            \)
+        return s:to_run(  'history-files',
+                 \ {
+                     \ 'source':  sk_funs#_recent_files(),
+                     \ 'options': [
+                                \ '--header-lines' , !empty(expand('%')) ,
+                                \ '--prompt'       , '文件历史> '        ,
+                        \         ]
+                  \},
+                 \ a:000
+                \)
     endf
 
-" GFiles[?]
+fun! s:gitRoot()
+    let g_root = split(system('git rev-parse --show-toplevel'), '\n')[0]
+    return v:shell_error
+    \ ? ''
+    \ : g_root
+endf
 
-    fun! s:get_git_root()
-        let g_root = split(system('git rev-parse --show-toplevel'), '\n')[0]
-        return v:shell_error ? '' : g_root
-    endf
 
+" GFiles
+"\ git ls-files的ignore/exclude规则没有fd的直观, 先用git_files代替
     fun! sk_funs#git_files(git_opts, ...)
-        let g_root = s:get_git_root()
+        let g_root = s:gitRoot()
 
         if empty(g_root)
             call s:warn('不在 git repo')
@@ -800,24 +799,22 @@ set cpo&vim
               \ {
                 \ 'source'  : 'git ls-files ' . a:git_opts . ' | uniq',
                 \ 'dir'     : g_root,
-                \ 'options' : '--layout=reverse-list,  -m --prompt "' . g_root . ' > "'
+                \ 'options' : '--prompt "' . g_root . ' > "'
                \},
               \ a:000
              \ )
     endf
 
-
+"\ GStatus
+"\ 现在在neovide里用会闪退, windows termnial就不会
     fun! sk_funs#git_status(...)
-        let g_root = s:get_git_root()
-
+        let g_root = s:gitRoot()
         " 别跳到git的root:  (git ls-status 一定要到git root?)
         if g_root =~ '/final/'
       \ || g_root =~ 'tbsi_final'
       \ || g_root =~ '/dotF'
             let g_root = getcwd()
         en
-
-
         " dangerous!
             " We're trying to access the common sink function that
                 " sk#wrap injects to
@@ -826,8 +823,6 @@ set cpo&vim
             \ 'source':  'git -c color.status=always status --short --untracked-files=all',
             \ 'dir':     g_root,
             \ 'options': [
-                \ '--ansi',
-                \ '--multi',
                 \ '--nth',
                     \ '2..,..',
                 \ '--tiebreak=index',
@@ -914,9 +909,9 @@ set cpo&vim
                         \ (a:b == bufnr('#') ? s:magenta('#', 'Special') : ' ')
         let modified = getbufvar(a:b, '&modified') ? s:red(' [+]', 'Exception') : ''
         let readonly = getbufvar(a:b, '&modifiable') ? '' : s:green(' [RO]', 'Constant')
-        let extra = join(filter([modified, readonly], '!empty(v:val)'), '')
+        let opts2 = join(filter([modified, readonly], '!empty(v:val)'), '')
         let target = line == 0 ? name : name.':'.line
-        return s:strip(printf("%s\t%d\t[%s] %s\t%s\t%s", target, line, s:yellow(a:b, 'Number'), flag, name, extra))
+        return s:strip(printf("%s\t%d\t[%s] %s\t%s\t%s", target, line, s:yellow(a:b, 'Number'), flag, name, opts2))
     endf
 
     fun! s:sort_buffers(...)
@@ -937,32 +932,25 @@ set cpo&vim
     endf
 
     fun! sk_funs#buffers(...)
-        let [query, args] = (a:0 && type(a:1) == type(''))
-                         \ ? [a:1, a:000[1:]]
-                         \ : ['',  a:000]
+        let [query, args] = (a:0 && type(a:1) == type('') )
+                           \ ? [a:1, a:000[1:]]
+                           \ : ['',  a:000]
         return s:to_run('buffers',
               \ {
-               \ 'source':  map(sk_funs#_buflisted_sorted(), 'sk_funs#_format_buffer(v:val)'),
-               \ 'sink*':   function('s:bufopen'),
-               \ 'options': s:reverse_list([
-                                           \ '--no-multi',
-                                           \ '-x',
-                                           \ '--tiebreak=index',
-                                           \ '--header-lines=1',
-                                           \ '--ansi',
-                                           \ '-d',
-                                           \ '\t',
-                                           \ '--with-nth',
-                                           \ '3..',
-                                           \ '-n',
-                                           \ '2,1..2',
-                                           \ '--prompt',
-                                           \ 'Buf> ',
-                                           \ '--query',
-                                           \ query,
-                                           \ '--preview-window',
-                                           \ '+{2}-/2',
-                                       \ ])
+                \ 'source' : map(sk_funs#_buflisted_sorted(), 'sk_funs#_format_buffer(v:val)'),
+                \ 'sink*'  : function('s:bufopen'),
+                \ 'options': [
+                            \ '--tiebreak=index' ,
+                            \ '--header-lines=1' ,
+                            \ '--delimiter=\t'   ,
+                            \ '--with-nth=3..'   ,
+                            \ '--nth=2,1..2'     ,
+                                    "\ 3..5   From the 3rd field to the 5th field
+                            \ '--prompt=Buf> ' ,
+                            \ '--query',  query  ,
+                            \ '--preview-window' ,
+                            \ '+{2}-/2'          ,
+                          \ ]
               \},
              \ args
            \ )
@@ -1005,11 +993,11 @@ set cpo&vim
     endf
 
     " interactive:
-        fun! sk_funs#grep_interactive(command, column_01, ...)
+        fun! sk_funs#grep_interactive(cmd, column_01, ...)
             let words = []
-            " command可以长这样:
+            " cmd可以长这样:
             " 'rg  --line-number --color=always '..get(g:, 'rg_opts', '')..' "{}" ' .. dir
-            for word in split(a:command)
+            for word in split(a:cmd)
                      " 空格划分
                 if word !~# '^[a-z]'
                     " 遇到--line-number等option, 结束for
@@ -1034,20 +1022,26 @@ set cpo&vim
 
             " 别人调用这函数时, opts在这里能改的只有3处, (但可以传a:000 覆盖这里的?)
             let opts = {
-                \ 'source':  'none',
-                \ 'column':  a:column_01,
-                "\ shell执行的是它?    sh -c 'rg --line-number ...'
-                \ 'options': ['-i', '-c', a:command,
+                    \ 'source':  'none',
+                    \ 'column':  a:column_01,
+                    "\ shell执行的是它?    sh -c 'rg --line-number ...'
+                    \ 'options': [
+                                \ '--interactive',
+                                \ '--cmd', a:cmd,
+                    \             '--cmd-prompt=' . Capname . '> ',
+                    \             '--bind=alt-a:select-all,alt-d:deselect-all',
+                    \             '--skip-to-pattern', '[^/]*:',
+                    \             '--delimiter=:',
+                                \ '--preview-window',
+                                \ '+{2}-/2'
+                               \]
+                  \}
+
                 "\ 表示path的var, can not update on the fly
-                "\ \             '--ansi', '--cmd-prompt', g:git_top_for_fzf..' '.Capname..'> ',
-                "\ \             '--ansi', '--cmd-prompt', $PWD..' '..Capname.'> ',
-                \             '--ansi', '--cmd-prompt', Capname.'> ',
-                \             '--multi', '--bind', 'alt-a:select-all,alt-d:deselect-all',
-                \             '--skip-to-pattern', '[^/]*:',
-                \             '--delimiter', ':', '--preview-window', '+{2}-/2',
-                "\ \             '--color', 'hl:4,hl+:12']  如何传参改颜色?
-                \             '--color']
-            \}
+                                            "\ g:git_top_for_fzf..' '.Capname..'> ',
+                                            "\ $PWD..' '..Capname.'> ',
+                "\ 所以只能这样?
+                "\ \             '--cmd-prompt', Capname . '> ',
 
             fun! opts.sink(lines)
                 return s:ag_handler(a:lines, self.column)
@@ -1063,10 +1057,10 @@ set cpo&vim
 
             fun! sk_funs#ag_interactive(dir, ...)
                 let dir = empty(a:dir) ? '.' : a:dir
-                let command = 'ag --nogroup --column --color '.get(g:, 'ag_opts', '').' "{}" ' . dir
+                let cmd = 'ag --nogroup --column --color '.get(g:, 'ag_opts', '').' "{}" ' . dir
                 return call(
                     \ 'sk_funs#grep_interactive',
-                    \ extend([command, 1], a:000, ),
+                    \ extend([cmd, 1], a:000, ),
                    \ )
             endf
 
@@ -1074,10 +1068,11 @@ set cpo&vim
                 let dir = empty(a:dir)
                         \ ? '.'
                         \ : a:dir
-                let command = 'rg --column --line-number --color=always '..get(g:, 'rg_opts', '') .. ' "{}" ' .. dir
+
+                let cmd = 'rg  --line-number --color=always '..get(g:, 'rg_opts', '') .. ' "{}" ' .. dir
                 return call(
                     \ 'sk_funs#grep_interactive',
-                    \ extend([command, 1], a:000),
+                    \ extend([cmd, 1], a:000),
                    \ )
             endf
 
@@ -1092,22 +1087,22 @@ set cpo&vim
             let query = empty(a:query) ? '^(?=.)' : a:query
             let args = copy(a:000)
             let ag_opts = len(args) > 1 && type(args[0]) == s:TYPE.string ? remove(args, 0) : ''
-            let command = ag_opts . ' -- ' . sk#shellescape(query)
-            return call('sk_funs#ag_raw', insert(args, command, 0))
+            let cmd = ag_opts . ' -- ' . sk#shellescape(query)
+            return call('sk_funs#ag_raw', insert(args, cmd, 0))
         endf
 
-            " ag command suffix, [options]
-            fun! sk_funs#ag_raw(command_suffix, ...)
+            " ag cmd suffix, [options]
+            fun! sk_funs#ag_raw(cmd_suffix, ...)
                 if !executable('ag')
                     return s:warn('ag is not found')
                 en
-                return call('sk_funs#grep', extend(['ag --nogroup --column --color '.a:command_suffix, 1], a:000))
+                return call('sk_funs#grep', extend(['ag --nogroup --column --color '.a:cmd_suffix, 1], a:000))
             endf
 
-                " 参数: command (string), has_column (0/1), [options (dict)], [fullscreen (0/1)]
-                fun! sk_funs#grep(grep_command, has_column, ...)
+                " 参数: cmd (string), has_column (0/1), [options (dict)], [fullscreen (0/1)]
+                fun! sk_funs#grep(grep_cmd, has_column, ...)
                     let words = []
-                    for word in split(a:grep_command)
+                    for word in split(a:grep_cmd)
                         if word !~# '^[a-z]'
                             break
                         en
@@ -1118,10 +1113,17 @@ set cpo&vim
                     let Capname = join(map(words, 'toupper(v:val[0]).v:val[1:]'), '')
                     let opts = {
                     \ 'column':  a:has_column,
-                    \ 'options': ['--ansi', '--prompt', Capname.'> ',
-                    \             '--multi', '--bind', 'alt-a:select-all,alt-d:deselect-all',
-                    \             '--delimiter', ':', '--preview-window', '+{2}-/2',
-                    \             '--color']
+                    \ 'options': [
+                        \ '--prompt',
+                        \ Capname.'> ',
+                        \ '--bind',
+                        \ 'alt-a:select-all,alt-d:deselect-all',
+                        \ '--delimiter',
+                        \ ':',
+                        \ '--preview-window',
+                        \ '+{2}-/2',
+                        \ '--color',
+                       \ ]
                     "\ \             '--color', 'hl:4,hl+:12']
                     \}
                     fun! opts.sink(lines)
@@ -1129,11 +1131,11 @@ set cpo&vim
                     endf
                     let opts['sink*'] = remove(opts, 'sink')
                     try
-                        let prev_default_command = $SKIM_DEFAULT_COMMAND
-                        let $SKIM_DEFAULT_COMMAND = a:grep_command
+                        let prev_default_cmd = $SKIM_DEFAULT_COMMAND
+                        let $SKIM_DEFAULT_COMMAND = a:grep_cmd
                         return s:to_run(name, opts, a:000)
                     finally
-                        let $SKIM_DEFAULT_COMMAND = prev_default_command
+                        let $SKIM_DEFAULT_COMMAND = prev_default_cmd
                     endtry
                 endf
 
@@ -1193,7 +1195,7 @@ set cpo&vim
             return s:to_run('btags', {
             \ 'source':  s:btags_source(tag_cmds),
             \ 'sink*':   function('s:btags_sink'),
-            \ 'options': s:reverse_list(['-m', '-d', '\t', '--with-nth', '1,4..', '-n', '1', '--prompt', 'BTags> ', '--query', a:query, '--preview-window', '+{3}-/2'])}, args)
+            \ 'options': s:reverse_list(['-d', '\t', '--with-nth', '1,4..', '-n', '1', '--prompt', 'BTags> ', '--query', a:query, '--preview-window', '+{3}-/2'])}, args)
         catch
             return s:warn(v:exception)
         endtry
@@ -1268,7 +1270,7 @@ set cpo&vim
         return s:to_run('tags', {
         \ 'source':  'perl '.sk#shellescape(s:bin.tags).' '.join(map(tagfiles, 'sk#shellescape(fnamemodify(v:val, ":p"))')),
         \ 'sink*':   function('s:tags_sink'),
-        \ 'options': extend(opts, ['--nth', '1..2', '-m', '--tiebreak=begin', '--prompt', 'Tags> ', '--query', a:query])}, a:000)
+        \ 'options': extend(opts, ['--nth', '1..2', '--tiebreak=begin', '--prompt', 'Tags> ', '--query', a:query])}, a:000)
     endf
 
 
@@ -1291,11 +1293,11 @@ set cpo&vim
         let colored = map(aligned, 's:yellow(v:val[0])."\t".v:val[1]')
         return s:to_run('snippets', {
         \ 'source':  colored,
-        \ 'options': '--ansi --tiebreak=index -m -n 1 -d "\t"',
+        \ 'options': '--tiebreak=index -n 1 -d "\t"',
         \ 'sink':    function('s:inject_snippet')}, a:000)
     endf
 
-" Commands
+" cmds
     let s:nbs = nr2char(0x2007)
 
     fun! s:format_cmd(line)
@@ -1328,24 +1330,24 @@ set cpo&vim
             return []
         en
 
-        let commands = []
-        let command = ''
+        let cmds = []
+        let cmd = ''
         for line in readfile(help)
             if line =~ '^|:[^|]'
-                if !empty(command)
-                    call add(commands, s:format_excmd(command))
+                if !empty(cmd)
+                    call add(cmds, s:format_excmd(cmd))
                 en
-                let command = line
-            elseif line =~ '^\s\+\S' && !empty(command)
-                let command .= substitute(line, '^\s*', ' ', '')
-            elseif !empty(commands) && line =~ '^\s*$'
+                let cmd = line
+            elseif line =~ '^\s\+\S' && !empty(cmd)
+                let cmd .= substitute(line, '^\s*', ' ', '')
+            elseif !empty(cmds) && line =~ '^\s*$'
                 break
             en
         endfor
-        if !empty(command)
-            call add(commands, s:format_excmd(command))
+        if !empty(cmd)
+            call add(cmds, s:format_excmd(cmd))
         en
-        return commands
+        return cmds
     endf
 
     fun! sk_funs#commands(...)
@@ -1358,8 +1360,8 @@ set cpo&vim
                     \{
                         \ 'source':  extend(extend(list[0:0], map(list[1:], 's:format_cmd(v:val)')), s:excmds()),
                         \ 'sink*':   function('s:command_sink'),
-                        \ 'options': '--ansi --expect ' . get(g:, 'fzf_commands_expect', 'ctrl-x').
-                        \            ' --tiebreak=index --header-lines 1 --extended --prompt "Commands> " -n2,3,2..3 -d'.s:nbs
+                        \ 'options': '--expect ' . get(g:, 'fzf_commands_expect', 'ctrl-x').
+                    \            ' --tiebreak=index --header-lines 1  --prompt "Commands> " -n2,3,2..3 -d'.s:nbs
                     \},
                     \ a:000
                     \)
@@ -1389,7 +1391,7 @@ set cpo&vim
         return s:to_run('marks', {
         \ 'source':  extend(list[0:0], map(list[1:], 's:format_mark(v:val)')),
         \ 'sink*':   function('s:mark_sink'),
-        \ 'options': '-m --extended --ansi --tiebreak=index --header-lines 1 --tiebreak=begin --prompt "Marks> "'}, a:000)
+        \ 'options': '--tiebreak=index --header-lines 1 --tiebreak=begin --prompt "Marks> "'}, a:000)
     endf
 
 " Help tags
@@ -1448,9 +1450,6 @@ set cpo&vim
                 \ 'source'  : shell_cmd,
                 \ 'sink'    : function('s:helptag_sink'),
                 \ 'options' : [
-                            \ '--layout=reverse-list' ,
-                            \ '--ansi'                ,
-                            \ '-m'                    ,
                             \ '--tiebreak=begin'      ,
                             \ '--with-nth'            ,
                             \ '..-2'                  ,
@@ -1466,7 +1465,7 @@ set cpo&vim
         \ 'source':  sk_funs#_uniq(sort(map(split(globpath(&rtp, 'syntax/*.vim'), '\n'),
         \            'fnamemodify(v:val, ":t:r")'))),
         \ 'sink':    'setf',
-        \ 'options': '-m --prompt="File types> "'
+        \ 'options': '--prompt="File types> "'
         \}, a:000)
     endf
 
@@ -1499,7 +1498,7 @@ set cpo&vim
         return s:to_run('windows', {
         \ 'source':  extend(['Tab Win    Name'], lines),
         \ 'sink':    function('s:windows_sink'),
-        \ 'options': '-m --ansi --tiebreak=begin --header-lines=1'}, a:000)
+        \ 'options': '--tiebreak=begin --header-lines=1'}, a:000)
     endf
 
 " Commits / BCommits
@@ -1510,16 +1509,18 @@ set cpo&vim
     endf
 
     fun! s:commits_sink(lines)
-        if len(a:lines) < 2
-            return
-        en
+        if len(a:lines) < 2  | return  | en
 
         let pat = '[0-9a-f]\{7,9}'
 
         if a:lines[0] == 'ctrl-y'
-            let hashes = join(filter(map(a:lines[1:], 'matchstr(v:val, pat)'), 'len(v:val)'))
+            let hashes = join( filter(
+                                \ map(a:lines[1:], 'matchstr(v:val, pat)') ,
+                                \ 'len(v:val)'                             ,
+                               \ )
+                       \ )
             return s:yank_to_register(hashes)
-        end
+        en
 
         let diff = a:lines[0] == 'ctrl-d'
         let cmd = s:edit_cmd(a:lines[0], 'e')
@@ -1542,7 +1543,7 @@ set cpo&vim
     endf
 
     fun! s:commits(buffer_local, args)
-        let s:git_root = s:get_git_root()
+        let s:git_root = s:gitRoot()
         if empty(s:git_root)
             return s:warn('Not in git repository')
         en
@@ -1556,38 +1557,50 @@ set cpo&vim
         en
 
         if a:buffer_local
-            if !managed
-                return s:warn('The current buffer is not in the working tree')
-            en
-            let source .= ' --follow '.sk#shellescape(current)
+            if !managed  | return s:warn('The current buffer is not in the working tree')  | en
+            let source .= ' --follow ' . sk#shellescape(current)
         el
             let source .= ' --graph'
         en
 
-        let command = a:buffer_local ? 'BCommits' : 'Commits'
-        let expect_keys = join(keys(get(g:, 'sk_editCmd', s:key2editCmd)), ',')
-        let options = {
+        let command = a:buffer_local
+                   \? 'BCommits'
+                   \: 'Commits'
+        let expect_keys = join(
+                          \ keys( get(g:, 'sk_editCmd', s:key2editCmd) ),
+                          \ ',',
+                        \ )
+        let opts = {
         \ 'source':  source,
         \ 'sink*':   function('s:commits_sink'),
-        \ 'options': s:reverse_list(['--ansi', '--multi', '--tiebreak=index',
-        \   '--inline-info', '--prompt', command.'> ', '--bind=ctrl-s:toggle-sort',
-        \   '--header', ':: Press '.s:magenta('CTRL-S', 'Special').' to toggle sort, '.s:magenta('CTRL-Y', 'Special').' to yank commit hashes',
-        \   '--expect=ctrl-y,'.expect_keys])
+        \ 'options': s:reverse_list([
+            \ '--tiebreak=index',
+            \ '--inline-info',
+            \ '--prompt',
+            \ command . '> ',
+            \ '--bind=ctrl-s:toggle-sort',
+            \ '--header',
+            \ '敲' . s:magenta('CTRL-S', 'Special') . ' to toggle sort, ' . s:magenta('CTRL-Y', 'Special') . ' to yank commit hashes',
+            \ '--expect=ctrl-y,' . expect_keys,
+           \ ])
         \ }
 
         if a:buffer_local
-            let options.options[-2] .= ', '.s:magenta('CTRL-D', 'Special').' to diff'
-            let options.options[-1] .= ',ctrl-d'
+            let opts.options[-2] .= ', '.s:magenta('CTRL-D', 'Special').' to diff'
+            let opts.options[-1] .= ',ctrl-d'
         en
 
         if !s:is_win && &columns > s:wide
-            call extend(options.options,
+            call extend(
+              \opts.options,
             \ ['--preview', 'echo {} | grep -o "[a-f0-9]\{7,\}" | head -1 | xargs git show --format=format: --color=always | head -1000'])
         en
 
         return s:to_run(
-            \ a:buffer_local ? 'bcommits' : 'commits',
-            \ options,
+            \ a:buffer_local
+                \ ? 'bcommits'
+                \ : 'commits',
+            \ opts,
             \ a:args,
            \ )
     endf
@@ -1634,48 +1647,6 @@ set cpo&vim
         "            \ ))
     endf
 
-    fun! sk_funs#maps(mode, ...)
-        let s:map_gv  = a:mode == 'x' ? 'gv' : ''
-        let s:map_cnt = v:count == 0 ? '' : v:count
-        let s:map_reg = empty(v:register) ? '' : ('"'.v:register)
-        let s:map_op  = a:mode == 'o' ? v:operator : ''
-
-        redir => cout
-        silent execute 'verbose' a:mode.'map'
-        redir END
-        let list = []
-        let curr = ''
-        for line in split(cout, "\n")
-            if line =~ "^\t"
-                let src = "\t".substitute(matchstr(line, '/\zs[^/\\]*\ze$'), ' [^ ]* ', ':', '')
-                call add(list, printf('%s %s', curr, s:green(src, 'Comment')))
-                let curr = ''
-            el
-                if !empty(curr)
-                    call add(list, curr)
-                en
-                let curr = line[3:]
-            en
-        endfor
-        if !empty(curr)
-            call add(list, curr)
-        en
-        let aligned = s:align_pairs(list)
-        let sorted  = sort(aligned)
-        let colored = map(sorted, 's:highlight_keys(v:val)')
-        let pcolor  = a:mode == 'x'
-                    \ ? 9
-                    \ : a:mode == 'o'
-                        \ ? 10
-                        \ : 12
-        return s:to_run('maps',
-        \ {
-        \ 'source':  colored,
-        \ 'sink':    function('s:key_sink'),
-        \ 'options': '--prompt "mode:' . a:mode . ' > " --ansi --no-hscroll --nth 1,..  prompt:' . pcolor
-        \ },
-        \ a:000)
-    endf
 
 " sk_funs#complete - completion helper
     ino      <silent> <Plug>(-fzf-complete-trigger)   <c-o>:call <sid>complete_trigger()<cr>
@@ -1727,13 +1698,16 @@ set cpo&vim
         en
     endf
 
-    fun! s:eval(dict, key, arg)
-        if has_key(a:dict, a:key) && type(a:dict[a:key]) == s:TYPE.funcref
-            let ret = copy(a:dict)
-            let ret[a:key] = call(a:dict[a:key], [a:arg])
+    fun! s:Func_or_dict(dict, key, arg)
+    "\ 作死/buggy
+        if ! ( has_key(a:dict, a:key)
+            \ && type(a:dict[a:key]) == s:TYPE.funcref )
+            return a:dict
+        el
+            let ret      = copy(a:dict)
+            let ret[a:key] = call(a:dict[a:key] , [a:arg])
             return ret
         en
-        return a:dict
     endf
 
     fun! sk_funs#complete(...)
@@ -1770,9 +1744,9 @@ set cpo&vim
                 let s:query = matchstr(full_prefix, Prefix)
             en
         en
-        let s:opts = s:eval(s:opts, 'source', s:query)
-        let s:opts = s:eval(s:opts, 'options', s:query)
-        let s:opts = s:eval(s:opts, 'extra_options', s:query)
+        let s:opts = s:Func_or_dict(s:opts, 'source'        , s:query)
+        let s:opts = s:Func_or_dict(s:opts, 'options'       , s:query)
+        let s:opts = s:Func_or_dict(s:opts, 'extra_options' , s:query)
         if has_key(s:opts, 'extra_options')
             call s:merge_opts(s:opts, remove(s:opts, 'extra_options'))
         en

@@ -7,56 +7,65 @@ fun! s:pv(bang, ...)
     let preview_window = get(
                         \ g:,
                         \ 'fzf_preview_window',
-                        \ a:bang && &columns >= 80 || &columns >= 120 ? 'right': '',
+                           \ a:bang  && &columns >= 80
+                        \ || &columns >= 120
+                              \ ? 'right'
+                               \: '',
                        \ )
     if len(preview_window)
         return call(
-            \ 'sk_funs#with_preview',
-            \ add(copy(a:000), preview_window),
-           \ )
+              \ 'sk_funs#with_preview',
+              \ add(copy(a:000), preview_window),
+            \ )
     el
         return {}
     en
 endf
 
 fun! s:history(arg, extra, bang)
-    let bang = a:bang ||
-         \ a:arg[len(a:arg)-1] == '!'
+    let bang = a:bang
+         \ || a:arg[ len(a:arg)-1 ] == '!'
     if a:arg[0] == ':'
         call sk_funs#command_history(bang)
+
     elseif a:arg[0] == '/'
         call sk_funs#search_history(bang)
+
     el
         call sk_funs#file_history(a:extra, bang)
     en
 endf
 
 
-com!      -bang -nargs=? -complete=dir Files       call sk_funs#files(<q-args>      , s:pv(<bang>0), <bang>0)
-com!      -bang -nargs=? GFiles                    call sk_funs#git_files(<q-args>  , s:pv(<bang>0), <bang>0)
-com!      -bang -nargs=? GStatus                   call sk_funs#git_status({}       , <bang>0)
+com! -bang      -nargs=? -complete=dir Files       call sk_funs#files(<q-args>      , s:pv(<bang>0), <bang>0)
+com! -bang      -nargs=? GFiles                    call sk_funs#git_files(<q-args>  , s:pv(<bang>0), <bang>0)
+com! -bang      -nargs=? GStatus                   call sk_funs#git_status({}       , <bang>0)
 
-com! -bar -bang -nargs=? -complete=buffer Buffers  call sk_funs#buffers(<q-args>, s:pv(<bang>0, { "placeholder": "{1}" }), <bang>0)
-com!      -bang -nargs=* Lines                     call sk_funs#lines(<q-args>, <bang>0)
-com!      -bang -nargs=* BLines                    call sk_funs#buffer_lines(<q-args>, <bang>0)
+com! -bang -bar -nargs=? -complete=buffer Buffers  call sk_funs#buffers(
+                                                                  \ <q-args>,
+                                                                  \ s:pv( <bang>0, { "placeholder": "{1}" } ),
+                                                                  \ <bang>0,
+                                                                \ )
 
-com!      -bang -nargs=+ -complete=dir Locate      call sk_funs#locate(<q-args>, s:pv(<bang>0), <bang>0)
-com!      -bang -nargs=* Rg                        call sk_funs#rg_interactive(<q-args>, s:pv(<bang>0), <bang>0)
-com!      -bang -nargs=* Tags                      call sk_funs#tags(<q-args>, <bang>0)
-com!      -bang -nargs=* BTags                     call sk_funs#buffer_tags(<q-args>, s:pv(<bang>0, { "placeholder": "{2}:{3}" }), <bang>0)
+com! -bang      -nargs=* Lines                     call sk_funs#lines(<q-args>, <bang>0)
+com! -bang      -nargs=* BLines                    call sk_funs#buffer_lines(<q-args>, <bang>0)
 
-com!      -bang -nargs=* History                   call s:history(<q-args>, s:pv(<bang>0), <bang>0)
+com! -bang      -nargs=+ -complete=dir Locate      call sk_funs#locate(<q-args>, s:pv(<bang>0), <bang>0)
+com! -bang      -nargs=* Rg                        call sk_funs#rg_interactive(<q-args>, s:pv(<bang>0), <bang>0)
+com! -bang      -nargs=* Tags                      call sk_funs#tags(<q-args>, <bang>0)
+com! -bang      -nargs=* BTags                     call sk_funs#buffer_tags(<q-args>, s:pv(<bang>0, { "placeholder": "{2}:{3}" }), <bang>0)
+
+com! -bang      -nargs=* History                   call s:history(<q-args>, s:pv(<bang>0), <bang>0)
 
 
-com! -bar -bang Snippets            call sk_funs#snippets(<bang>0)
-com! -bar -bang Commands            call sk_funs#commands(<bang>0)
-com! -bar -bang Marks               call sk_funs#marks(<bang>0)
-com! -bar -bang Helptags            call sk_funs#helptags(<bang>0)
-com! -bar -bang Windows             call sk_funs#windows(<bang>0)
-com! -bar -bang Commits             call sk_funs#commits(<bang>0)
-com! -bar -bang BCommits            call sk_funs#buffer_commits(<bang>0)
-com! -bar -bang Maps                call sk_funs#maps("n", <bang>0)
-com! -bar -bang Filetypes           call sk_funs#filetypes(<bang>0)
+com!  -bang -bar   Snippets            call sk_funs#snippets(<bang>0)
+com!  -bang -bar   Commands            call sk_funs#commands(<bang>0)
+com!  -bang -bar   Marks               call sk_funs#marks(<bang>0)
+com!  -bang -bar   Helptags            call sk_funs#helptags(<bang>0)
+com!  -bang -bar   Windows             call sk_funs#windows(<bang>0)
+com!  -bang -bar   Commits             call sk_funs#commits(<bang>0)
+com!  -bang -bar   BCommits            call sk_funs#buffer_commits(<bang>0)
+com!  -bang -bar   Filetypes           call sk_funs#filetypes(<bang>0)
 
 
 

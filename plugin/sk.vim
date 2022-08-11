@@ -70,6 +70,7 @@ endf
 
 let s:layout_keys =  ['window', 'tmux', 'up', 'down', 'left' , 'right']
 let s:skim_rs     =  s:base_dir . '/bin/sk'
+"\ todo, 可以在这里加--exact等? 或者修改/home/wf/dotF/zsh/zshenv.zsh里的skim配置?
 let s:skim_tmux   =  s:base_dir . '/bin/sk-tmux'
 
 let s:cpo_save = &cpo  | set cpo&vim
@@ -94,10 +95,6 @@ fun! sk#exec()
         elseif input('skim executable not found. Download binary? (y/n) install被wf注释掉了  ') =~? '^y'
             redraw
             echom '被我注释掉了'
-            " call sk#install()
-            "\ 递归?
-            "\ 还是只return函数名?
-            "\ return sk#exec()
         el
             redraw
             throw 'skim executable not found'
@@ -145,9 +142,9 @@ fun! s:warn(msg)
     echohl None
 endf
 
-fun! s:has_any(dict, keys)
+fun! s:has_any(a_dict, keys)
     for key in a:keys
-        if has_key(a:dict, key)
+        if has_key(a:a_dict, key)
             return 1
         en
     endfor
@@ -288,9 +285,13 @@ fun! s:validate_layout(layout)
     return a:layout
 endf
 
-fun! s:evaluate_opts(options)
-    return type(a:options) == type([]) ?
-                \ join(map(copy(a:options), 'sk#shellescape(v:val)')) : a:options
+fun! s:eval_opts(opts)
+    if type( a:opts ) == type( [] )
+        return join( map( copy(a:opts)  , 'sk#shellescape(v:val)' )
+             \)
+    el
+         return a:opts
+     en
 endf
 
 " [name string,] [opts dict,] [fullscreen boolean]
@@ -336,8 +337,8 @@ fun! sk#wrap(...)
     en
 
 
-    "\ let opts.options =  s:evaluate_opts( get(opts, 'options', '') )
-    let opts.options = s:ori_colors() . ' ' . s:evaluate_opts( get(opts, 'options', '') )
+    "\ let opts.options =  s:eval_opts( get(opts, 'options', '') )
+    let opts.options = s:ori_colors() . ' ' . s:eval_opts( get(opts, 'options', '') )
     " echom "opts.options 是: "   opts.options
 
     " History: g:skim_history_dir
@@ -378,24 +379,24 @@ fun! sk#run(...) abort
     try
         let [shell, shellslash, shellcmdflag, shellxquote] = s:use_sh()
 
-        let dict   = exists('a:1') ? copy(a:1) : {}
+        let a_dict   = exists('a:1')
+                \ ? copy(a:1)
+                  : {}
         let temps  = { 'result': s:skim_tempname() }
-        let optstr = s:evaluate_opts(get(dict, 'options', ''))
+        let optstr = s:eval_opts(get(a_dict, 'options', ''))
         try
             let skim_exec = sk#shellescape(sk#exec())
-            "\ /home/linuxbrew/.linuxbrew//bin/sk
-            "\ echom "skim_exec 是: "   skim_exec
         catch
             throw v:exception
             echom "v:exception 是: "   v:exception
         endtry
 
-        if !has_key(dict, 'dir')  | let dict.dir = s:skim_getcwd()  | en
+        if !has_key(a_dict, 'dir')  | let a_dict.dir = s:skim_getcwd()  | en
 
-        if has('win32unix') && has_key(dict, 'dir')  | let dict.dir = fnamemodify(dict.dir, ':p')  | en
+        if has('win32unix') && has_key(a_dict, 'dir')  | let a_dict.dir = fnamemodify(a_dict.dir, ':p')  | en
 
-        if has_key(dict, 'source')
-            let source = dict.source
+        if has_key(a_dict, 'source')
+            let source = a_dict.source
             "\ echom "source 是: "   source
             let type = type(source)
 
@@ -417,7 +418,7 @@ fun! sk#run(...) abort
         en
 
         let prefer_tmux = get(g:, 'skim_prefer_tmux', 0)
-                    \ || has_key(dict, 'tmux')
+                    \ || has_key(a_dict, 'tmux')
         let use_height = 0
 
         let has_vim8_term = has('terminal') && has('patch-8.0.995')
@@ -427,34 +428,33 @@ fun! sk#run(...) abort
                 \ && !has('win32unix')
                 \ && ( has('gui_running')
                     \  || !use_height
-                    \  && s:present(dict, 'down', 'up', 'left', 'right', 'window')
+                    \  && s:present(a_dict, 'down', 'up', 'left', 'right', 'window')
                   \ )
 
-        let use_tmux = (has_key(dict, 'tmux') || (!use_height && !use_term || prefer_tmux) && !has('win32unix') && s:splittable(dict)) && s:tmux_enabled()
+        let use_tmux = (has_key(a_dict, 'tmux') || (!use_height && !use_term || prefer_tmux) && !has('win32unix') && s:splittable(a_dict)) && s:tmux_enabled()
         if prefer_tmux && use_tmux
             let use_height = 0
             let use_term   = 0
         en
         if use_height
-            let height = s:calc_size(&lines, dict.down, dict)
+            let height = s:calc_size(&lines, a_dict.down, a_dict)
             let optstr .= ' --height=' . height
         elseif use_term
             let optstr .= ' --no-height'
         en
         let command = prefix . (use_tmux
-                                \ ? s:skim_tmux(dict)
+                                \ ? s:skim_tmux(a_dict)
                                 \ : skim_exec)
                        \ . ' ' . optstr . ' > ' . temps.result
 
-        if use_term
-            return s:execute_term(dict, command, temps)
-
         "\ echom "command, 是: "   command
+        "\ /home/wf/dotF/zsh/zshenv.zsh里有2个skim的env var,
+        "\ 本文件 不受alias.zsh里的sk的alias影响
             " ( git ls-files  | uniq )|
-            " \ '/home/linuxbrew/.linuxbrew//bin/sk'
+            " \ '/home/linuxbrew/.linuxbrew/bin/sk'
             " \ --history
             " \ '/data2/wf2/.cache_wf/nvim/skim_history/GFiles'
-            " \ '--color=border:#f0f0e0,current:#000000,matched_bg:#e0e0df,pointer_bg:#f0f0e0,info:#444444,bg:#f0f0e0,spinner:#444444,marker_bg:#f0f0e0,gutter:#ff0000,matched:#000000,prompt:#444444,current_bg:#e0e9d0,fg:#444444,info_bg:#f0f0e0,header:#444444,marker:#444444,current_match_bg:#d0e0da,current_match:#000000,pointer:#444444,header_bg:#f0f0e0,prompt_bg:#f0f0e0,spinner_bg:#f0f0e0'
+            " \ '--color=border:#...'
             " \ --layout=reverse-list,
             " \ -m  --prompt "/home/wf/.local/share/nvim/PL/sk > "
             " \ '--preview-window'
@@ -464,12 +464,16 @@ fun! sk#run(...) abort
             " \ --expect=ctrl-v,ctrl-x,ctrl-t
             " \ --no-height
             " \ > /tmp/nvimuscF4Q/22
+
+        if use_term
+            return s:execute_term(a_dict, command, temps)
+
         el
             let lines = use_tmux
-                    \ ? s:execute_tmux(dict, command, temps)
-                    \ : s:execute(dict, command, use_height, temps)
+                    \ ? s:execute_tmux(a_dict, command, temps)
+                    \ : s:execute(a_dict, command, use_height, temps)
 
-            call s:callback(dict, lines)
+            call s:callback(a_dict, lines)
             return lines
         en
 
@@ -478,23 +482,23 @@ fun! sk#run(...) abort
     endtry
 endf
 
-fun! s:present(dict, ...)
+fun! s:present(a_dict, ...)
     for key in a:000
-        if !empty(get(a:dict, key, ''))
+        if !empty(get(a:a_dict, key, ''))
             return 1
         en
     endfor
     return 0
 endf
 
-fun! s:skim_tmux(dict)
-    let size = get(a:dict, 'tmux', '')
+fun! s:skim_tmux(a_dict)
+    let size = get(a:a_dict, 'tmux', '')
     if empty(size)
         for o in ['up', 'down', 'left', 'right']
-            if s:present(a:dict, o)
-                let spec = a:dict[o]
+            if s:present(a:a_dict, o)
+                let spec = a:a_dict[o]
                 if (o == 'up' || o == 'down') && spec[0] == '~'
-                    let size = '-'.o[0].s:calc_size(&lines, spec, a:dict)
+                    let size = '-'.o[0].s:calc_size(&lines, spec, a:a_dict)
                 el
                     " Legacy boolean option
                     let size = '-'.o[0].(spec == 1 ? '' : substitute(spec, '^\~', '', ''))
@@ -504,16 +508,16 @@ fun! s:skim_tmux(dict)
         endfor
     en
     return printf('LINES=%d COLUMNS=%d %s %s %s --',
-        \ &lines, &columns, sk#shellescape(s:skim_tmux), size, (has_key(a:dict, 'source') ? '' : '-'))
+        \ &lines, &columns, sk#shellescape(s:skim_tmux), size, (has_key(a:a_dict, 'source') ? '' : '-'))
 endf
 
-fun! s:splittable(dict)
-    return s:present(a:dict, 'up', 'down') && &lines > 15 ||
-                \ s:present(a:dict, 'left', 'right') && &columns > 40
+fun! s:splittable(a_dict)
+    return s:present(a:a_dict, 'up', 'down') && &lines > 15 ||
+                \ s:present(a:a_dict, 'left', 'right') && &columns > 40
 endf
 
-fun! s:pushd(dict)
-    if s:present(a:dict, 'dir')
+fun! s:pushd(a_dict)
+    if s:present(a:a_dict, 'dir')
         let cwd = s:skim_getcwd()
         let w:skim_pushd = {
         \   'command': haslocaldir()
@@ -522,10 +526,10 @@ fun! s:pushd(dict)
         \   'origin': cwd,
         \   'bufname': bufname('')
         \ }
-        exe     'lcd' s:escape(a:dict.dir)
+        exe     'lcd' s:escape(a:a_dict.dir)
         let cwd              = s:skim_getcwd()
         let w:skim_pushd.dir = cwd
-        let a:dict.pushd     = w:skim_pushd
+        let a:a_dict.pushd     = w:skim_pushd
         return cwd
     en
     return ''
@@ -609,14 +613,14 @@ fun! s:exit_handler(code, command, ...)
     return 1
 endf
 
-fun! s:execute(dict, command, use_height, temps) abort
-    call s:pushd(a:dict)
+fun! s:execute(a_dict, command, use_height, temps) abort
+    call s:pushd(a:a_dict)
     if has('unix') && !a:use_height
         silent! !clear 2> /dev/null
     en
     let escaped = a:use_height  ? a:command : escape(substitute(a:command, '\n', '\\n', 'g'), '%#!')
     if has('gui_running')
-        let Launcher = get(a:dict, 'launcher', get(g:, 'Skim_launcher', get(g:, 'skim_launcher', s:launcher)))
+        let Launcher = get(a:a_dict, 'launcher', get(g:, 'Skim_launcher', get(g:, 'skim_launcher', s:launcher)))
         let fmt = type(Launcher) == 2 ? call(Launcher, []) : Launcher
         if has('unix')
             let escaped = "'".substitute(escaped, "'", "'\"'\"'", 'g')."'"
@@ -634,7 +638,7 @@ fun! s:execute(dict, command, use_height, temps) abort
     en
 
     if a:use_height
-        let stdin = has_key(a:dict, 'source') ? '' : '< /dev/tty'
+        let stdin = has_key(a:a_dict, 'source') ? '' : '< /dev/tty'
         call system(printf('tput cup %d > /dev/tty; tput cnorm > /dev/tty; %s %s 2> /dev/tty', &lines, command, stdin))
     el
         exe     'silent !'.command
@@ -644,9 +648,9 @@ fun! s:execute(dict, command, use_height, temps) abort
     return s:exit_handler(exit_status, command) ? s:collect(a:temps) : []
 endf
 
-fun! s:execute_tmux(dict, command, temps) abort
+fun! s:execute_tmux(a_dict, command, temps) abort
     let command = a:command
-    let cwd = s:pushd(a:dict)
+    let cwd = s:pushd(a:a_dict)
     if len(cwd)
         " -c '#{pane_current_path}' is only available on tmux 1.9 or above
         let command = join(['cd', sk#shellescape(cwd), '&&', command])
@@ -658,7 +662,7 @@ fun! s:execute_tmux(dict, command, temps) abort
     return s:exit_handler(exit_status, command) ? s:collect(a:temps) : []
 endf
 
-fun! s:calc_size(max, val, dict)
+fun! s:calc_size(max, val, a_dict)
     let val = substitute(a:val, '^\~', '', '')
     if val =~ '%$'
         let size = a:max * str2nr(val[:-2]) / 100
@@ -667,11 +671,11 @@ fun! s:calc_size(max, val, dict)
     en
 
     let srcsz = -1
-    if type(get(a:dict, 'source', 0)) == type([])
-        let srcsz = len(a:dict.source)
+    if type(get(a:a_dict, 'source', 0)) == type([])
+        let srcsz = len(a:a_dict.source)
     en
 
-    let opts = $SKIM_DEFAULT_OPTIONS.' '.s:evaluate_opts(get(a:dict, 'options', ''))
+    let opts = $SKIM_DEFAULT_OPTIONS . ' ' . s:eval_opts(get(a:a_dict, 'options', ''))
     if opts =~ 'preview'
         return size
     en
@@ -687,7 +691,7 @@ fun! s:getpos()
     return {'tab': tabpagenr(), 'win': winnr(), 'winid': win_getid(), 'cnt': winnr('$'), 'tcnt': tabpagenr('$')}
 endf
 
-fun! s:split(dict)
+fun! s:split(a_dict)
     let directions = {
     \ 'up':    ['topleft', 'resize', &lines],
     \ 'down':  ['botright', 'resize', &lines],
@@ -696,22 +700,22 @@ fun! s:split(dict)
     let ppos = s:getpos()
     let is_popup = 0
     try
-        if s:present(a:dict, 'window')
-            if type(a:dict.window) == type({})
-                call s:popup(a:dict.window)
+        if s:present(a:a_dict, 'window')
+            if type(a:a_dict.window) == type({})
+                call s:popup(a:a_dict.window)
                 let is_popup = 1
             el
-                exe     'keepalt' a:dict.window
+                exe     'keepalt' a:a_dict.window
             en
-        elseif !s:splittable(a:dict)
+        elseif !s:splittable(a:a_dict)
             exe     (tabpagenr()-1).'tabnew'
         el
             for [dir, triple] in items(directions)
-                let val = get(a:dict, dir, '')
+                let val = get(a:a_dict, dir, '')
                 if !empty(val)
                     let [cmd, resz, max] = triple
                     if (dir == 'up' || dir == 'down') && val[0] == '~'
-                        let sz = s:calc_size(max, val, a:dict)
+                        let sz = s:calc_size(max, val, a:a_dict)
                     el
                         let sz = s:calc_size(max, val, {})
                     en
@@ -729,19 +733,19 @@ fun! s:split(dict)
     endtry
 endf
 
-fun! s:execute_term(dict, command, temps) abort
+fun! s:execute_term(a_dict, command, temps) abort
     let winrest = winrestcmd()
     let pbuf    = bufnr('')
-    let [ppos, winopts, is_popup] = s:split(a:dict)
+    let [ppos, winopts, is_popup] = s:split(a:a_dict)
     call s:use_sh()
 
     "\ build "term_opts"
-        let b:term_opts = a:dict  "\ 这行多余的?
+        let b:term_opts = a:a_dict  "\ 这行多余的?
         let term_opts = {
             \ 'buf'     : bufnr('') ,
             \ 'pbuf'    : pbuf      ,
             \ 'ppos'    : ppos      ,
-            \ 'dict'    : a:dict    ,
+            \ 'a_dict'    : a:a_dict    ,
             \ 'temps'   : a:temps   ,
             \ 'winopts' : winopts   ,
             \ 'winrest' : winrest   ,
@@ -786,14 +790,14 @@ fun! s:execute_term(dict, command, temps) abort
                 return
             en
 
-            call s:pushd(self.dict)
+            call s:pushd(self.a_dict)
             let lines = s:collect(self.temps)
-            call s:callback(self.dict, lines)
+            call s:callback(self.a_dict, lines)
             call self.switch_back(s:getpos() == self.ppos)
         endf
 
     try
-        call s:pushd(a:dict)
+        call s:pushd(a:a_dict)
         let cmd = a:command . s:term_marker
                         " 这货是  ;#SKIM
         " set shellcmdflag+=-i  导致报错
@@ -832,23 +836,23 @@ fun! s:collect(temps) abort
     endtry
 endf
 
-fun! s:callback(dict, lines) abort
-    let popd = has_key(a:dict, 'pushd')
-    if popd  | let w:skim_pushd = a:dict.pushd  | en
+fun! s:callback(a_dict, lines) abort
+    let popd = has_key(a:a_dict, 'pushd')
+    if popd  | let w:skim_pushd = a:a_dict.pushd  | en
 
     try
-        if has_key( a:dict, 'sink')
+        if has_key( a:a_dict, 'sink')
             for line in a:lines
-                if type(a:dict.sink) == v:t_func
-                    call a:dict.sink(line)
+                if type(a:a_dict.sink) == v:t_func
+                    call a:a_dict.sink(line)
                 el
-                    exe     a:dict.sink  s:escape(line)
+                    exe     a:a_dict.sink  s:escape(line)
                 en
             endfor
         en
 
-        if has_key(a:dict, 'sink*')
-            call a:dict['sink*'](a:lines)
+        if has_key(a:a_dict, 'sink*')
+            call a:a_dict['sink*'](a:lines)
         en
 
     catch
@@ -857,7 +861,7 @@ fun! s:callback(dict, lines) abort
 
     " We may have opened a new window or tab
     if popd
-        let w:skim_pushd = a:dict.pushd
+        let w:skim_pushd = a:a_dict.pushd
         call s:do_popd()
     en
 endf

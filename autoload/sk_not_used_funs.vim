@@ -1,0 +1,45 @@
+"\ com!  -bang -bar   Maps                call sk_funs#maps("n", <bang>0)
+
+fun! sk_funs#maps(mode, ...)
+    let s:map_gv  = a:mode == 'x' ? 'gv' : ''
+    let s:map_cnt = v:count == 0 ? '' : v:count
+    let s:map_reg = empty(v:register) ? '' : ('"'.v:register)
+    let s:map_op  = a:mode == 'o' ? v:operator : ''
+
+    redir => cout
+    silent execute 'verbose' a:mode.'map'
+    redir END
+    let list = []
+    let curr = ''
+    for line in split(cout, "\n")
+        if line =~ "^\t"
+            let src = "\t".substitute(matchstr(line, '/\zs[^/\\]*\ze$'), ' [^ ]* ', ':', '')
+            call add(list, printf('%s %s', curr, s:green(src, 'Comment')))
+            let curr = ''
+        el
+            if !empty(curr)
+                call add(list, curr)
+            en
+            let curr = line[3:]
+        en
+    endfor
+    if !empty(curr)
+        call add(list, curr)
+    en
+    let aligned = s:align_pairs(list)
+    let sorted  = sort(aligned)
+    let colored = map(sorted, 's:highlight_keys(v:val)')
+    let pcolor  = a:mode == 'x'
+                \ ? 9
+                \ : a:mode == 'o'
+                    \ ? 10
+                    \ : 12
+    return s:to_run('maps',
+    \ {
+    \ 'source':  colored,
+    \ 'sink':    function('s:key_sink'),
+    \ 'options': '--prompt "mode:' . a:mode . ' > "  --no-hscroll --nth 1,..  prompt:' . pcolor
+    \ },
+    \ a:000)
+endf
+

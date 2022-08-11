@@ -7,11 +7,12 @@ let s:cpo_save = &cpo  | set cpo&vim
     let s:min_version = '0.9.3'
     let s:is_win      = has('win32') || has('win64')
     let s:layout_keys = ['window', 'up', 'down', 'left', 'right']
-    let s:bin_dir     = expand('<sfile>:p:h:h:h').'/bin/'
+    let s:bin_dir     = expand('<sfile>:p:h:h:h') . '/bin/'
     let s:bin = {
-    \ 'preview': s:bin_dir.'preview.sh',
-    \ 'tags':    s:bin_dir.'tags.pl' }
-    let s:TYPE = {'dict': type({}), 'funcref': type(function('call')), 'string': type(''), 'list': type([])}
+        \ 'preview' :  s:bin_dir . 'preview.sh' ,
+        \ 'tags'    :  s:bin_dir . 'tags.pl'    ,
+       \ }
+
     if s:is_win
         if has('nvim')
             let s:bin.preview = split(system('for %A in ("'.s:bin.preview.'") do @echo %~sA'), "\n")[0]
@@ -66,8 +67,8 @@ let s:cpo_save = &cpo  | set cpo&vim
             return
         en
         if has_key(a:dict, 'options')
-            if  type(a:dict.options) == s:TYPE.list
-          \ && type(a:ex_opt_list) == s:TYPE.list
+            if  type(a:dict.options) == v:t_list
+          \ && type(a:ex_opt_list) == v:t_list
                 if a:prepend
                     let a:dict.options = extend(copy(a:ex_opt_list), a:dict.options)
                 el
@@ -79,7 +80,7 @@ let s:cpo_save = &cpo  | set cpo&vim
                         \  :  [a:dict.options , a:ex_opt_list]
                 let a:dict.options = join(map(
                                       \ all_opts,
-                                      \ 'type(v:val) == s:TYPE.list
+                                      \ 'type(v:val) == v:t_list
                                         \ ? join( map(copy(v:val), "sk#shellescape(v:val)") )
                                         \ : v:val',
                                      \ ))
@@ -110,7 +111,7 @@ let s:cpo_save = &cpo  | set cpo&vim
         let args = copy(a:000)
 
         " Spec to wrap
-        if len(args) && type(args[0]) == s:TYPE.dict
+        if len(args) && type(args[0]) == v:t_dict
             let spec = copy(args[0])
             call remove(args, 0)
         en
@@ -131,7 +132,7 @@ let s:cpo_save = &cpo  | set cpo&vim
                        \ )
 
         " Preview window  id??
-        if len(args) && type(args[0]) == s:TYPE.string
+        if len(args) && type(args[0]) == v:t_string
             if args[0] !~#   '^\(up\|down\|left\|right\)'
                 throw 'invalid preview window: '.args[0]
             en
@@ -213,7 +214,7 @@ let s:cpo_save = &cpo  | set cpo&vim
         let opts = copy(a:opts)
         let options = ''
         if has_key(opts, 'options')
-            let options = type(opts.options) == s:TYPE.list
+            let options = type(opts.options) == v:t_list
                     \ ? join(opts.options)
                     \ : opts.options
         en
@@ -315,7 +316,7 @@ let s:cpo_save = &cpo  | set cpo&vim
         let [opts2, bang] = [{}, 0]
         if len(a:opts2) <= 1
             let first = get(a:opts2, 0, 0)
-            if type(first) == s:TYPE.dict
+            if type(first) == v:t_dict
                 let opts2 = first
             el
                 let bang = first
@@ -363,7 +364,7 @@ let s:cpo_save = &cpo  | set cpo&vim
                 \ cmd_spec,
                \ )
 
-        return  type(Cmd) == s:TYPE.string
+        return  type(Cmd) == v:t_string
           \ ? Cmd
           \ : cmd_spec
     endf
@@ -1081,12 +1082,12 @@ endf
     " ag() (非interactive):
         " query, [[ag options], options]
         fun! sk_funs#ag(query, ...)
-            if type(a:query) != s:TYPE.string
+            if type(a:query) != v:t_string
                 return s:warn('Invalid query argument')
             en
             let query = empty(a:query) ? '^(?=.)' : a:query
             let args = copy(a:000)
-            let ag_opts = len(args) > 1 && type(args[0]) == s:TYPE.string ? remove(args, 0) : ''
+            let ag_opts = len(args) > 1 && type(args[0]) == v:t_string ? remove(args, 0) : ''
             let cmd = ag_opts . ' -- ' . sk#shellescape(query)
             return call('sk_funs#ag_raw', insert(args, cmd, 0))
         endf
@@ -1701,7 +1702,7 @@ endf
     fun! s:Func_or_dict(dict, key, arg)
     "\ 作死/buggy
         if ! ( has_key(a:dict, a:key)
-            \ && type(a:dict[a:key]) == s:TYPE.funcref )
+            \ && type(a:dict[a:key]) == v:t_func )
             return a:dict
         el
             let ret      = copy(a:dict)
@@ -1713,9 +1714,9 @@ endf
     fun! sk_funs#complete(...)
         if a:0 == 0
             let s:opts = sk#wrap()
-        elseif type(a:1) == s:TYPE.dict
+        elseif type(a:1) == v:t_dict
             let s:opts = copy(a:1)
-        elseif type(a:1) == s:TYPE.string
+        elseif type(a:1) == v:t_string
             let s:opts = extend({'source': a:1}, get(a:000, 1, sk#wrap()))
         el
             echoerr 'Invalid argument: '.string(a:000)
@@ -1738,7 +1739,7 @@ endf
             let s:query = ''
         el
             let full_prefix = getline('.')[0 : col('.')-2]
-            if type(Prefix) == s:TYPE.funcref
+            if type(Prefix) == v:t_func
                 let s:query = call(Prefix, [full_prefix])
             el
                 let s:query = matchstr(full_prefix, Prefix)
@@ -1751,7 +1752,7 @@ endf
             call s:merge_opts(s:opts, remove(s:opts, 'extra_options'))
         en
         if has_key(s:opts, 'options')
-            if type(s:opts.options) == s:TYPE.list
+            if type(s:opts.options) == v:t_list
                 call add(s:opts.options, '--no-expect')
             el
                 let s:opts.options .= ' --no-expect'

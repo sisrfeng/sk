@@ -380,8 +380,8 @@ fun! sk#run(...) abort
         let [shell, shellslash, shellcmdflag, shellxquote] = s:use_sh()
 
         let a_dict   = exists('a:1')
-                \ ? copy(a:1)
-                  : {}
+                    \ ? copy(a:1)
+                     \: {}
         let temps  = { 'result': s:skim_tempname() }
         let optstr = s:eval_opts(get(a_dict, 'options', ''))
         try

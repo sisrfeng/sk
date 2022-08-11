@@ -4,25 +4,16 @@
 let s:cpo_save = &cpo  | set cpo&vim
 
 " Common
-    let s:min_version = '0.9.3'
-    let s:is_win      = has('win32') || has('win64')
     let s:layout_keys = ['window', 'up', 'down', 'left', 'right']
-    let s:bin_dir     = expand('<sfile>:p:h:h:h') . '/bin/'
+    let s:bin_dir     = expand('<sfile>:p:h:h') . '/bin/'
     let s:bin = {
         \ 'preview' :  s:bin_dir . 'preview.sh' ,
         \ 'tags'    :  s:bin_dir . 'tags.pl'    ,
        \ }
 
-    if s:is_win
-        if has('nvim')
-            let s:bin.preview = split(system('for %A in ("'.s:bin.preview.'") do @echo %~sA'), "\n")[0]
-        el
-            let s:bin.preview = fnamemodify(s:bin.preview, ':8')
-        en
-    en
 
-    let s:wide = 120
-    let s:warned = 0
+    let s:wide    = 120
+    let s:warned  = 0
     let s:checked = 0
 
     fun! s:version_requirement(val, min)
@@ -40,45 +31,38 @@ let s:cpo_save = &cpo  | set cpo&vim
     fun! s:check_requirements()
         if s:checked  | return  | en
 
-        " 我把skim.vim放到autoload下了
-        " if !exists('*sk#run')
-        "     throw "sk#run function not found. You also need Vim plugin from the main fzf repository (i.e. junegunn/fzf *and* junegunn/fzf.vim)"
-        " en
-        " if !exists('*sk#exec')
-        "     throw "sk#exec function not found. You need to upgrade Vim plugin from the main fzf repository ('junegunn/fzf')"
-        " en
-
         let exec = sk#exec()
-        let fzf_version = matchstr(
-            \ systemlist(exec .. ' --version')[0],
-            \ '[0-9.]*',
-           \ )
+        let sk_version = matchstr(
+                             \ systemlist(exec . ' --version')[0],
+                             \ '[0-9.]*',
+                            \ )
 
-        if s:version_requirement(fzf_version, s:min_version)
+        if s:version_requirement(sk_version, s:min_version)
             let s:checked = 1
             return
+        el
+            throw printf( 'You need to upgrade SK ' )
         en
 
-        throw printf('You need to upgrade fzf. Found: %s (%s). Required: %s or above.', fzf_version, exec, s:min_version)
     endf
 
-    fun! s:extend_opts(dict, ex_opt_list, prepend)
-        if empty(a:ex_opt_list)
+    fun! s:extend_opts(a_dict, opts, prepend)
+        if empty(a:opts)
             return
         en
-        if has_key(a:dict, 'options')
-            if  type(a:dict.options) == v:t_list
-          \ && type(a:ex_opt_list) == v:t_list
+        if has_key(a:a_dict, 'options')
+            if  type(a:a_dict.options) == v:t_list
+          \ && type(a:opts) == v:t_list
                 if a:prepend
-                    let a:dict.options = extend(copy(a:ex_opt_list), a:dict.options)
+                    let a:a_dict.options = extend(copy(a:opts), a:a_dict.options)
                 el
-                    call extend(a:dict.options, a:ex_opt_list)
+                    call extend(a:a_dict.options, a:opts)
                 en
             el
                 let all_opts = a:prepend
-                         \ ? [a:ex_opt_list   , a:dict.options]
-                        \  :  [a:dict.options , a:ex_opt_list]
-                let a:dict.options = join(map(
+                         \ ? [a:opts   , a:a_dict.options]
+                        \  :  [a:a_dict.options , a:opts]
+                let a:a_dict.options = join(map(
                                       \ all_opts,
                                       \ 'type(v:val) == v:t_list
                                         \ ? join( map(copy(v:val), "sk#shellescape(v:val)") )
@@ -86,16 +70,16 @@ let s:cpo_save = &cpo  | set cpo&vim
                                      \ ))
             en
         el
-            let a:dict.options = a:ex_opt_list
+            let a:a_dict.options = a:opts
         en
     endf
 
-    fun! s:merge_opts(dict, ex_opt_list)
-        return s:extend_opts(a:dict, a:ex_opt_list, 0)
+    fun! s:merge_opts(a_dict, opts)
+        return s:extend_opts(a:a_dict, a:opts, 0)
     endf
 
-    fun! s:prepend_opts(dict, ex_opt_list)
-        return s:extend_opts(a:dict, a:ex_opt_list, 1)
+    fun! s:prepend_opts(a_dict, opts)
+        return s:extend_opts(a:a_dict, a:opts, 1)
     endf
 
     " [
@@ -144,14 +128,9 @@ let s:cpo_save = &cpo  | set cpo&vim
         if len(window)
             let preview += ['--preview-window', window]
         en
-        if s:is_win
-            let is_wsl_bash = exepath('bash') =~? 'Windows[/\\]system32[/\\]bash.exe$'
-            let preview_cmd = 'bash '.(is_wsl_bash
-            \ ? substitute(substitute(s:bin.preview, '^\([A-Z]\):', '/mnt/\L\1', ''), '\', '/', 'g')
-            \ : escape(s:bin.preview, '\'))
-        el
-            let preview_cmd = sk#shellescape(s:bin.preview)
-        en
+
+        let preview_cmd = sk#shellescape(s:bin.preview)
+
         let preview += ['--preview', preview_cmd.' '.placeholder]
 
         if len(args)
@@ -240,71 +219,93 @@ let s:cpo_save = &cpo  | set cpo&vim
         return substitute(a:str, '\n*$', '', 'g')
     endf
 
-    fun! s:escape(path)
-        let path = fnameescape(a:path)
-        return s:is_win ? escape(path, '$') : path
-    endf
+    "\ color config
+        fun! s:get_color(attr, ...)
+            let gui = has('termguicolors') && &termguicolors
+            let gui01 = gui ? 'gui' : 'cterm'
+            let pat   = gui
+                     \? '^#[a-f0-9]\+'
+                     \: '^[0-9]\+$'
+            for group in a:000
+                let code = synIDattr(
+                               \ synIDtrans(hlID(group)),
+                               \ a:attr,
+                               \ gui01,
+                              \ )
+                if code =~? pat
+                    return code
+                en
+            endfor
+            return ''
+        endf
 
 
-    fun! s:get_color(attr, ...)
-        let gui = has('termguicolors') && &termguicolors
-        let fam = gui ? 'gui' : 'cterm'
-        let pat = gui ? '^#[a-f0-9]\+' : '^[0-9]\+$'
-        for group in a:000
-            let code = synIDattr(synIDtrans(hlID(group)), a:attr, fam)
-            if code =~? pat
-                return code
+        " Table 34-1. Numbers representing colors in Escape Sequences
+        "
+            " Color	Foreground	Background
+            " black	30	40
+            " red	31	41
+            " green	32	42
+            " yellow	33	43
+            " blue	34	44
+            " magenta	35	45
+            " cyan	36	46
+            " white	37	47
+
+        " let s:ansi = {'black': 30, 'red': 31, 'green': 32, 'yellow': 33, 'blue': 34, 'magenta': 35, 'cyan': 36}
+        let s:ansi = {
+                \ 'black'   :  37 ,
+                \ 'red'     :  31 ,
+                \ 'green'   :  32 ,
+                \ 'yellow'  :  33 ,
+                \ 'blue'    :  34 ,
+                \ 'magenta' :  35 ,
+                \ 'cyan'    :  36 ,
+             \ }
+
+        fun! s:csi(color, fg)
+            let prefix = a:fg
+                    \ ? '38;'
+                    \ : '48;'
+            if a:color[0] == '#'
+                return prefix . '2;' . join(
+                                   \ map(
+                                        \ [ a:color[1:2], a:color[3:4], a:color[5:6]  ],
+                                        \ 'str2nr(v:val, 16)',
+                                   \ ),
+                                   \ ';',
+                                  \ )
             en
+            return prefix . '5;' . a:color
+        endf
+
+        fun! s:set_color(str, group, default, ...)
+            let fg = s:get_color('fg', a:group)
+            let bg = s:get_color('bg', a:group)
+
+            let color =  empty(fg)
+                        \ ? s:ansi[a:default]
+                        \ : s:csi(fg, 1)
+
+            let color .= empty(bg)
+                        \ ? ''
+                        \ : ';' . s:csi(bg, 0)
+
+            return printf( "\x1b[%s" . "%sm" . "%s\x1b[m" ,
+                          \ color                ,
+                                 \ a:0
+                                     \? ';1'
+                                    \ : ''           ,
+                                         \ a:str
+                   \)
+        endf
+
+        "\ s:green() s:red() 等
+        for s:color_name in keys(s:ansi)
+            exe     "func! s:" . s:color_name . "(str, ...)\n"
+                        \ "  return s:set_color(a:str,  get(a:, 1, ''), '" . s:color_name . "')\n"
+                  \ "endf"
         endfor
-        return ''
-    endf
-
-
-    " Table 34-1. Numbers representing colors in Escape Sequences
-    "
-        " Color	Foreground	Background
-        " black	30	40
-        " red	31	41
-        " green	32	42
-        " yellow	33	43
-        " blue	34	44
-        " magenta	35	45
-        " cyan	36	46
-        " white	37	47
-
-    " let s:ansi = {'black': 30, 'red': 31, 'green': 32, 'yellow': 33, 'blue': 34, 'magenta': 35, 'cyan': 36}
-    let s:ansi = {'black': 37, 'red': 31, 'green': 32, 'yellow': 33, 'blue': 34, 'magenta': 35, 'cyan': 36}
-
-    fun! s:csi(color, fg)
-        let prefix = a:fg ? '38;' : '48;'
-        if a:color[0] == '#'
-            return prefix.'2;'.join(map([a:color[1:2], a:color[3:4], a:color[5:6]], 'str2nr(v:val, 16)'), ';')
-        en
-        return prefix.'5;'.a:color
-    endf
-
-    fun! s:ansi(str, group, default, ...)
-        let fg = s:get_color('fg', a:group)
-        let bg = s:get_color('bg', a:group)
-        let color = (empty(fg)
-                    \ ? s:ansi[a:default]
-                    \ : s:csi(fg, 1)) .   (empty(bg)
-                                            \ ? ''
-                                            \ : ';' . s:csi(bg, 0))
-
-        return printf("\x1b[%s%sm%s\x1b[m",
-                \ color,
-                \ a:0 ?
-                   \ ';1'
-                    \ : '',
-                \ a:str)
-    endf
-
-    for s:color_name in keys(s:ansi)
-        exe     "function! s:".s:color_name."(str, ...)\n"
-                    \ "  return s:ansi(a:str, get(a:, 1, ''), '".s:color_name."')\n"
-                    \ "endfunction"
-    endfor
 
     fun! s:buflisted()
         return filter(range(1, bufnr('$')), 'buflisted(v:val) && getbufvar(v:val, "&filetype") != "qf"')
@@ -327,11 +328,11 @@ let s:cpo_save = &cpo  | set cpo&vim
             throw '调用main时, opts2这个list包含的参数个数只能是0,1或2'
         en
 
-        let ex_opt_list  = has_key(opts2, 'options')
+        let opts  = has_key(opts2, 'options')
                             \ ? remove(opts2, 'options')
                             \ : ''
         let merged_opts = extend(copy(a:opts), opts2)
-        call s:merge_opts(merged_opts, ex_opt_list)
+        call s:merge_opts(merged_opts, opts)
 
         return sk#run( s:wrap(
                        \ a:name,
@@ -373,7 +374,7 @@ let s:cpo_save = &cpo  | set cpo&vim
         if stridx('edit', a:cmd) == 0 && fnamemodify(a:target, ':p') ==# expand('%:p')
             return
         en
-        exe     a:cmd s:escape(a:target)
+        exe     a:cmd fnameescape(a:target)
     endf
 
     fun! s:align_lists(lists)
@@ -523,7 +524,10 @@ let s:cpo_save = &cpo  | set cpo&vim
                 if len(bufname) > len_bufnames + 1
                     let bufname = '…' . bufname[-len_bufnames+1:]
                 en
-                let bufname = printf(s:green("%".len_bufnames."s", "Directory"), bufname)
+                let bufname = printf(
+                                \ s:green("%" . len_bufnames . "s", "Directory"),
+                                \ bufname,
+                             \ )
             el
                 let bufname = ''
             en
@@ -904,12 +908,28 @@ endf
 
     fun! sk_funs#_format_buffer(b)
         let name = bufname(a:b)
-        let line = exists('*getbufinfo') ? getbufinfo(a:b)[0]['lnum'] : 0
-        let name = empty(name) ? '[No Name]' : fnamemodify(name, ":p:~:.")
-        let flag = a:b == bufnr('')  ? s:blue('%', 'Conditional') :
-                        \ (a:b == bufnr('#') ? s:magenta('#', 'Special') : ' ')
-        let modified = getbufvar(a:b, '&modified') ? s:red(' [+]', 'Exception') : ''
-        let readonly = getbufvar(a:b, '&modifiable') ? '' : s:green(' [RO]', 'Constant')
+        let line = exists('*getbufinfo')
+                \ ? getbufinfo(a:b)[0]['lnum']
+                \ : 0
+
+        let name = empty(name)
+                \ ? 'No Name'
+                \ : fnamemodify(name, ":p:~:.")
+
+        let flag = a:b == bufnr('')
+                \ ? s:blue('%', 'Conditional')
+                \ : (a:b == bufnr('#')
+                        \ ? s:magenta('#', 'Special')
+                        \ : ' ')
+
+        let modified = getbufvar(a:b, '&modified')
+                    \ ? s:red(' [+]', 'Exception')
+                    \ : ''
+
+        let readonly = getbufvar(a:b, '&modifiable')
+                    \ ? ''
+                    \ : s:green(' [RO]', 'Constant')
+
         let opts2 = join(filter([modified, readonly], '!empty(v:val)'), '')
         let target = line == 0 ? name : name.':'.line
         return s:strip(printf("%s\t%d\t[%s] %s\t%s\t%s", target, line, s:yellow(a:b, 'Number'), flag, name, opts2))
@@ -938,11 +958,11 @@ endf
                            \ : ['',  a:000]
         return s:to_run('buffers',
               \ {
-                \ 'source' : map(sk_funs#_buflisted_sorted(), 'sk_funs#_format_buffer(v:val)'),
+                \ 'source' : map(sk_funs#_buflisted_sorted(),  'sk_funs#_format_buffer(v:val)'),
                 \ 'sink*'  : function('s:bufopen'),
                 \ 'options': [
                             \ '--tiebreak=index' ,
-                            \ '--header-lines=1' ,
+                            "\ \ '--header-lines=1' ,
                             \ '--delimiter=\t'   ,
                             \ '--with-nth=3..'   ,
                             \ '--nth=2,1..2'     ,
@@ -960,11 +980,11 @@ endf
 " Ag / Rg
     fun! s:ag_to_qf(line, has_column)
         let parts = matchlist(a:line, '\(.\{-}\)\s*:\s*\(\d\+\)\%(\s*:\s*\(\d\+\)\)\?\%(\s*:\(.*\)\)\?')
-        let dict = {'filename': &acd ? fnamemodify(parts[1], ':p') : parts[1], 'lnum': parts[2], 'text': parts[4]}
+        let a_dict = {'filename': &acd ? fnamemodify(parts[1], ':p') : parts[1], 'lnum': parts[2], 'text': parts[4]}
         if a:has_column
-            let dict.col = parts[3]
+            let a_dict.col = parts[3]
         en
-        return dict
+        return a_dict
     endf
 
     fun! s:ag_handler(lines, has_column)
@@ -1184,7 +1204,7 @@ endf
     fun! sk_funs#buffer_tags(query, ...)
         let args = copy(a:000)
         let escaped = sk#shellescape(expand('%'))
-        let null = s:is_win ? 'nul' : '/dev/null'
+        let null =  '/dev/null'
         let sort = has('unix') && !has('win32unix') && executable('sort') ? '| sort -s -k 5' : ''
         let tag_cmds = (len(args) > 1 && type(args[0]) != type({})) ? remove(args, 0) : [
             \ printf('ctags -f - --sort=yes --excmd=number --language-force=%s %s 2> %s %s', &filetype, escaped, null, sort),
@@ -1219,7 +1239,9 @@ endf
                     let excmd   = matchstr(join(parts[2:-2], '')[:-2], '^.\{-}\ze;\?"\t')
                     let base    = fnamemodify(parts[-1], ':h')
                     let relpath = parts[1][:-2]
-                    let abspath = relpath =~ (s:is_win ? '^[A-Z]:\' : '^/') ? relpath : join([base, relpath], '/')
+                    let abspath = relpath =~  '^/'
+                                \? relpath
+                                \: join([base, relpath], '/')
                     call s:open(cmd, expand(abspath, 1))
                     silent execute excmd
                     call add(qfl, {'filename': expand('%'), 'lnum': line('.'), 'text': getline('.')})
@@ -1249,7 +1271,7 @@ endf
             redraw
             if gen =~? '^y'
                 call s:warn('Preparing tags')
-                call system(get(g:, 'fzf_tags_command', 'ctags -R'.(s:is_win ? ' --output-format=e-ctags' : '')))
+                call system(  get(g:, 'fzf_tags_command', 'ctags -R ')  )
                 if empty(tagfiles())
                     return s:warn('Failed to create tags')
                 en
@@ -1400,7 +1422,7 @@ endf
         let [tag, file, path] = split(a:line, "\t")[0:2]
         let rtp = fnamemodify(path, ':p:h:h')
         if stridx(&rtp, rtp) < 0
-            exe 'set rtp+=' . s:escape(rtp)
+            exe 'set rtp+=' . fnameescape(rtp)
         en
         exe  'silent! helptags ALL | -tab help' tag
         " exe  'help' tag
@@ -1414,43 +1436,30 @@ endf
                 \ ? uniq(sorted)
                 \ : sk_funs#_uniq(sorted)
 
-        if exists('s:helptags_script')  | silent! call delete(s:helptags_script)  | en
+        if exists('s:tmp_fname')  | silent! call delete(s:tmp_fname)  | en
 
-        let s:helptags_script = tempname()
+        let s:tmp_fname = tempname()
             " 该文件里是   /(.*?):(.*?)\t(.*?)\t/; printf(qq([38;2;128;112;48m%-40s[m\t%s\t%s\n), $2, $3, $1)
 
-        " let search_regex =  ['/('
-            "         \   . (s:is_win ? '^[A-Z]:[\/\\].*?[^:]' : '.*?')
-            "         \ . ')
-            "             \ :(.*?)\t(.*?)\t/;
-            "             \ printf(qq('
-            "                         \ . s:green('%-40s', 'Label')
-            "                         \ . '\t%s\t%s\n'
-            "                   \ . '),
-            "                     \ $2,
-            "                     \ $3,
-            "                     \ $1
-            "                   \ )'
-            "         \ ],
+        let search_regex =   [   '/(.*?):(.*?)\t(.*?)\t/; printf(qq(' . s:green('%-40s', 'Label') . '\t%s\t%s\n), $2, $3, $1)'  ]
 
-        let search_regex =   ['/('.(s:is_win ? '^[A-Z]:[\/\\].*?[^:]' : '.*?').'):(.*?)\t(.*?)\t/; printf(qq('.s:green('%-40s', 'Label').'\t%s\t%s\n), $2, $3, $1)']
-
-        call writefile(search_regex , s:helptags_script)
+        call writefile(search_regex , s:tmp_fname)
 
 
         let shell_cmd = 'grep -H ".*" '
                  \ . join(  map(tags, 'sk#shellescape(v:val)')  )
-                 \ . ' | perl -n ' . sk#shellescape(s:helptags_script)
+                 \ . ' | perl -n ' . sk#shellescape(s:tmp_fname)
                \   . ' | sort'
 
         " echom "shell_cmd 是: "   shell_cmd
 
         return s:to_run(
-             \ 'helptags',
+               \ 'helptags',
               \ {
                 \ 'source'  : shell_cmd,
                 \ 'sink'    : function('s:helptag_sink'),
                 \ 'options' : [
+                            \ '--prompt=Help >'       ,
                             \ '--tiebreak=begin'      ,
                             \ '--with-nth'            ,
                             \ '..-2'                  ,
@@ -1652,8 +1661,8 @@ endf
 " sk_funs#complete - completion helper
     ino      <silent> <Plug>(-fzf-complete-trigger)   <c-o>:call <sid>complete_trigger()<cr>
 
-    fun! s:pluck(dict, key, default)
-        return has_key(a:dict, a:key) ? remove(a:dict, a:key) : a:default
+    fun! s:pluck(a_dict, key, default)
+        return has_key(a:a_dict, a:key) ? remove(a:a_dict, a:key) : a:default
     endf
 
     fun! s:complete_trigger()
@@ -1699,14 +1708,14 @@ endf
         en
     endf
 
-    fun! s:Func_or_dict(dict, key, arg)
+    fun! s:Func_or_dict(a_dict, key, arg)
     "\ 作死/buggy
-        if ! ( has_key(a:dict, a:key)
-            \ && type(a:dict[a:key]) == v:t_func )
-            return a:dict
+        if ! ( has_key(a:a_dict, a:key)
+            \ && type(a:a_dict[a:key]) == v:t_func )
+            return a:a_dict
         el
-            let ret      = copy(a:dict)
-            let ret[a:key] = call(a:dict[a:key] , [a:arg])
+            let ret      = copy(a:a_dict)
+            let ret[a:key] = call(a:a_dict[a:key] , [a:arg])
             return ret
         en
     endf

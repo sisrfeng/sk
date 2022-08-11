@@ -1,4 +1,4 @@
-#!/home/linuxbrew/.linuxbrew/bin/zsh
+#!/usr/bin/env bash
 
 reverse="\x1b[7m"
 reset="\x1b[m"

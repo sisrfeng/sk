@@ -1,5 +1,13 @@
 "\ com!  -bang -bar   Maps                call sk_funs#maps("n", <bang>0)
 
+" 我把skim.vim放到autoload下了
+" if !exists('*sk#run')
+"     throw "sk#run function not found. You also need Vim plugin from the main fzf repository (i.e. junegunn/fzf *and* junegunn/fzf.vim)"
+" en
+" if !exists('*sk#exec')
+"     throw "sk#exec function not found. You need to upgrade Vim plugin from the main fzf repository ('junegunn/fzf')"
+" en
+
 fun! sk_funs#maps(mode, ...)
     let s:map_gv  = a:mode == 'x' ? 'gv' : ''
     let s:map_cnt = v:count == 0 ? '' : v:count

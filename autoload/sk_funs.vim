@@ -858,135 +858,135 @@ endf
     endf
 
 " Buffers
-    fun! s:find_open_window(buf)
-        let [tcur, tcnt] = [tabpagenr() - 1, tabpagenr('$')]
-        for toff in range(0, tabpagenr('$') - 1)
-            let t = (tcur + toff) % tcnt + 1
-            let buffers = tabpagebuflist(t)
-            for w in range(1, len(buffers))
-                let buf = buffers[w - 1]
-                if buf == a:buf
-                    return [t, w]
-                en
+        fun! s:find_open_window(buf)
+            let [tcur, tcnt] = [tabpagenr() - 1, tabpagenr('$')]
+            for toff in range(0, tabpagenr('$') - 1)
+                let t = (tcur + toff) % tcnt + 1
+                let buffers = tabpagebuflist(t)
+                for w in range(1, len(buffers))
+                    let buf = buffers[w - 1]
+                    if buf == a:buf
+                        return [t, w]
+                    en
+                endfor
             endfor
-        endfor
-        return [0, 0]
-    endf
+            return [0, 0]
+        endf
 
-    fun! s:jump(t, w)
-        exe   a:t . 'tabnext'
-        exe   a:w . 'wincmd w'
-    endf
+        fun! s:tab_win(n_tab, n_win)
+            exe   a:n_tab . 'tabnext'
+            exe   a:n_win . 'wincmd w'
+        endf
 
-    fun! s:bufopen(lines)
-        if len(a:lines) < 2
-            return
-        en
-        let buf = matchstr(a:lines[1], '\[\zs[0-9]*\ze\]')
-        if empty(a:lines[0]) && get(g:, 'fzf_buffers_jump')
-            let [t, w] = s:find_open_window(buf)
-            if t
-                call s:jump(t, w)
+        fun! s:bufopen(lines)
+            if len(a:lines) < 2
                 return
             en
-        en
+            let buf = matchstr(a:lines[1], '\[\zs[0-9]*\ze\]')
+            if empty(a:lines[0]) && get(g:, 'fzf_buffers_jump')
+                let [n_tab, n_win] = s:find_open_window(buf)
+                if n_tab
+                    call s:tab_win(n_tab, n_win)
+                    return
+                en
+            en
 
-        let cmd = s:edit_cmd(a:lines[0], )
-        " echom "s:edit_cmd(a:lines[0]) 是: "   s:edit_cmd(a:lines[0])
-        " 有的地方能识别出'enter', 这里为空
-        if !empty(cmd)
-            exe    'silent' cmd
-        el
-            exe    'silent' '-tab split'
-            " let cmd = s:edit_cmd(a:lines[0], '-tab split ')
-            " 或者用它?
-            " let cmd = s:edit_cmd(a:lines[0], '-tab split ')
-        en
+            let cmd = s:edit_cmd(a:lines[0] )
+            " echom "s:edit_cmd(a:lines[0]) 是: "   s:edit_cmd(a:lines[0])
+            " 有的地方能识别出'enter', 这里为空
+            if !empty(cmd)
+                exe    'silent' cmd
+            el
+                exe    'silent' '-tab split'
+                " let cmd = s:edit_cmd(a:lines[0], '-tab split ')
+                " 或者用它?
+                " let cmd = s:edit_cmd(a:lines[0], '-tab split ')
+            en
 
-        exe   'buffer' buf
-    endf
+            exe   'buffer' buf
+        endf
 
-    fun! sk_funs#_format_buffer(buf)
-        let name = bufname(a:buf)
-        let line = exists('*getbufinfo')
-                \ ? getbufinfo(a:buf)[0]['lnum']
-                \ : 0
+        fun! sk_funs#_format_buffer(buf)
+            let name = bufname(a:buf)
+            let line = exists('*getbufinfo')
+                    \ ? getbufinfo(a:buf)[0]['lnum']
+                    \ : 0
 
-        let name = empty(name)
-                \ ? 'No Name'
-                \ : fnamemodify(name, ":p:~:.")
+            let name = empty(name)
+                    \ ? 'No Name'
+                    \ : fnamemodify(name, ":p:~:.")
 
-        let flag = a:buf == bufnr('')
-                \ ? s:blue('%', 'Conditional')
-                \ : (a:buf == bufnr('#')
-                        \ ? s:magenta('#', 'Special')
-                        \ : ' ')
+            let flag = a:buf == bufnr('')
+                    \ ? s:blue('%', 'Conditional')
+                    \ : (a:buf == bufnr('#')
+                            \ ? s:magenta('#', 'Special')
+                            \ : ' ')
 
 
 
-        let modified = getbufvar(a:buf, '&modified')
-                    \ ? s:red('[+]', 'In_BackticK')
-                    \ : ''
+            let modified = getbufvar(a:buf, '&modified')
+                        \ ? s:red('[+]', 'In_BackticK')
+                        \ : ''
 
-        let readonly = getbufvar(a:buf, '&modifiable')
-                    \ ? ''
-                    \ : s:green(' [RO]', 'Normal')
+            let readonly = getbufvar(a:buf, '&modifiable')
+                        \ ? ''
+                        \ : s:green(' [RO]', 'Normal')
 
-        let opts2 = join(filter([modified, readonly], '!empty(v:val)'), '')
-        let target = line == 0
-                \ ? name
-                \ : name . ':' . line
-        return s:strip(printf(
-                        \ "%s\t%d\t[%s] %s\t%s\t%s",
-                        \ target,
-                        \ line,
-                        \ s:yellow(a:buf, 'Number'),
-                        \ flag,
-                        \ name,
-                        \ opts2,
-                    \ )
-             \)
-    endf
+            let opts2 = join(filter([modified, readonly], '!empty(v:val)'), '')
+            let target = line == 0
+                    \ ? name
+                    \ : name . ':' . line
+            return s:strip(printf(
+                            \ "%s\t%d\t[%s] %s\t%s\t%s",
+                            \ target,
+                            \ line,
+                            \ s:yellow(a:buf, 'Number'),
+                            \ flag,
+                            \ name,
+                            \ opts2,
+                        \ )
+                 \)
+        endf
 
-    fun! s:sort_buffers(...)
-        let [b1, b2] = map(
-                     \ copy(a:000),
-                    \ 'get(g:sk_funs#buffers, v:val, v:val)',
-                    \ )
-        " Usi
-        " g minus between a float and a number in a sort function causes an error
-        " 根据load的顺序来排?
-        return b1 < b2
-        \ ? 1
-        \ : -1
-    endf
+        fun! s:sort_buffers(...)
+            let [b1, b2] = map(
+                         \ copy(a:000),
+                         \ 'get(g:sk_funs#buffers, v:val, v:val)',
+                        \ )
+            " Usi
+            " g minus between a float and a number in a sort function causes an error
+            " 根据load的顺序来排?
+            return b1 < b2
+            \ ? 1
+            \ : -1
+        endf
 
-    fun! sk_funs#_buflisted_sorted()
-        return sort(s:buflisted(), 's:sort_buffers')
-    endf
+        fun! sk_funs#_buflisted_sorted()
+            return sort(s:buflisted(), 's:sort_buffers')
+        endf
 
     fun! sk_funs#buffers(...)
         let [query, args] = (a:0 && type(a:1) == type('') )
                            \ ? [a:1, a:000[1:]]
                            \ : ['',  a:000]
-        return s:to_run('buffers',
-              \ {
-                \ 'source' : map(sk_funs#_buflisted_sorted(),  'sk_funs#_format_buffer(v:val)'),
-                \ 'sink*'  : function('s:bufopen'),
-                \ 'options': [
-                            \ '--tiebreak=index' ,
-                            "\ \ '--header-lines=1' ,
-                            \ '--delimiter=\t'   ,
-                            \ '--with-nth=3..'   ,
-                            \ '--nth=2,1..2'     ,
-                                    "\ 3..5   From the 3rd field to the 5th field
-                            \ '--prompt=Buf> ' ,
-                            \ '--query',  query  ,
-                            \ '--preview-window' ,
-                            \ '+{2}-/2'          ,
-                          \ ]
-              \},
-             \ args
+        return s:to_run( 'Bufs',
+               \ {
+                 \ 'source' : map(sk_funs#_buflisted_sorted(),  'sk_funs#_format_buffer(v:val)'),
+                 \ 'sink*'  : function('s:bufopen'),
+                 \ 'options': [
+                             \ '--tiebreak=index' ,
+                             "\ \ '--header-lines=1' ,
+                             \ '--delimiter=\t'   ,
+                             \ '--with-nth=3..'   ,
+                             \ '--nth=2,1..2'     ,
+                                       "\ 1..2   From the 1st field to the second field
+                             \ '--prompt=Buf> ' ,
+                             \ '--query',  query  ,
+                             \ '--preview-window' ,
+                             \ '+{2}-/2'          ,
+                           \ ]
+               \},
+              \ args
            \ )
     endf
 
@@ -1503,7 +1503,7 @@ endf
 
     fun! s:windows_sink(line)
         let list = matchlist(a:line, '^ *\([0-9]\+\) *\([0-9]\+\)')
-        call s:jump(list[1], list[2])
+        call s:tab_win(list[1], list[2])
     endf
 
     fun! sk_funs#windows(...)

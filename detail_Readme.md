@@ -309,33 +309,44 @@ call skim#run({'source': map(split(globpath(&rtp, 'colors/*.vim')),
 
 The following table summarizes the available options.
 
-| Option name                | Type          | Description                                                           |
-| -------------------------- | ------------- | ----------------------------------------------------------------      |
-| `source`                   | string        | External command to generate input to skim (e.g. `find .`)             |
-| `source`                   | list          | Vim list as input to skim                                              |
+source和sink  有点像 微积分里的源点 和 汇点
 
-| `sink`                     | string        | Vim command to handle the selected item (e.g. `e`, `tabe`)            |
-|                            | funcref       | Reference to function to process each selected item                   |
+Option name                  | Type          | Description                                                           
+------------------------     | ------------- | ----------------------------------------------------------------      
+`source`                       | - string      |  external command generating something   (e.g. `find .`)             
+(Input to skim )             | - list        |  Vim list                                               
 
-| `sinklist` (or `sink*`)    | funcref       | Similar to `sink`, but takes the list of output lines at once         |
-| `options`                  | string/list   | Options to skim                                                        |
-| `dir`                      | string        | Working directory                                                     |
 
-| `up`/`down`/`left`/`right` | number/string | (Layout) Window position and size (e.g. `20`, `50%`)                  |
-| `tmux`                     | string        | (Layout) skim-tmux options (e.g. `-p90%,60%`)                          |
-| `window` (Vim 8 / Neovim)  | string        | (Layout) Command to open skim window (e.g. `vertical aboveleft 30new`) |
-|                            | dict          | (Layout) Popup window settings (e.g. `{'width': 0.9, 'height': 0.6}`) |
+How to handle selected item 
+`sink`                         | - string      | Vim command    (e.g. `e`, `tabedit`).            
+                             | - funcref     | funcref                                                                       
+`sinkS`                        | funcref       |  takes the list of output lines at once         
 
-`options` entry can be either a string or a list. For simple cases, string
-should suffice, but prefer to use list type to avoid escaping issues.
+
+`options`                      | string/list   | Options to skim                                                        
+`dir`                          | string        | Working directory                                                     
+
+layout
+`up`/`down`/`left`/`right`           | number/string |  Window position and size (e.g. `20`, `50%`)                  
+`window`                       | - string      |  Command to open skim window (e.g. `vertical aboveleft 30new`) 
+                             | - dict        |  Popup window settings (e.g. `{'width': 0.9, 'height': 0.6}`) 
+`tmux`                         | string        |  skim-tmux options (e.g. `-p90%,60%`)                          
+
+
+
+`options` entry can be either
+        a string or a list.
+    For simple cases, string  should suffice,
+        but prefer to use list type to avoid escaping issues.
 
 ```vim
 call skim#run({'options': '--reverse --prompt "C:\\Program Files\\"'})
 call skim#run({'options': ['--reverse', '--prompt', 'C:\Program Files\']})
 ```
 
-When `window` entry is a dictionary, skim will start in a popup window. The
-following options are allowed:
+When `window` entry is a dictionary,
+    skim will start in a popup window.
+    The  following options are allowed:
 
 - Required:
     - `width` [float range [0 ~ 1]] or [integer range [8 ~ ]]
@@ -346,6 +357,7 @@ following options are allowed:
     - `relative` [boolean default v:false]
     - `border` [string default `rounded`]: Border style
         - `rounded` / `sharp` / `horizontal` / `vertical` / `top` / `bottom` / `left` / `right` / `no[ne]`
+
 
 `skim#wrap`
 ----------
@@ -422,7 +434,7 @@ command! -bang -complete=dir -nargs=? LS
 
 - `g:skim_layout`
 - `g:skim_action`
-    - **Works only when no custom `sink` (or `sinklist`) is provided**
+    - **Works only when no custom `sink` (or `sinkS`) is provided**
         - Having custom sink usually means that each entry is not an ordinary
           file path (e.g. name of color scheme), so we can't blindly apply the
           same strategy (i.e. `tabedit some-color-scheme` doesn't make sense)

@@ -1,7 +1,6 @@
 ==========================
 
-TABLE OF CONTENTS                                *fzf-vim*  *fzf-vim-toc*
-
+TABLE OF CONTENTS                                 *skim-vim*  *sk-vim*
 
     Rationale
     Why you should use fzf on Vim
@@ -442,7 +441,7 @@ following exceptions:
    - Or a function to extract completion prefix
  - Both `source` and `options` can be given as funcrefs that take the completion
    prefix as the argument and return the final value
- - `sink` or `sink*` are ignored
+ - `sink` or `sinkS` are ignored
 
     " Global line completion (not just open buffers. ripgrep required.)
     ino      <expr> <c-x><c-l> fzf#vim#complete(skim#wrap({

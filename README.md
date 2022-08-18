@@ -168,7 +168,7 @@ below.
 
 ```vim
 " [Buffers] Jump to the existing window if possible
-let g:fzf_buffers_jump = 1
+let g:skim_buffers_jump = 1
 
 " [[B]Commits] Customize the options used by 'git log':
 let g:fzf_commits_log_options = '--graph --color=always --format="%C(auto)%h%d %s %C(black)%C(bold)%cr"'
@@ -397,7 +397,7 @@ The set of options is pretty much identical  to that for `skim#run`
     - Or a function to extract completion prefix
 - Both `source` and `options` can be given as funcrefs that take the
   completion prefix as the argument and return the final value
-- `sink` or `sink*` are ignored
+- `sink` or `sinkS` are ignored
 
 ```vim
 " Global line completion (not just open buffers. ripgrep required.)

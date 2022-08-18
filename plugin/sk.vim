@@ -32,9 +32,6 @@ let g:loaded_skim = 1
         return a:cmds
     endf
 
-    fun! s:enc_to_cp(str)
-        return a:str
-    endf
 
 fun! s:shellesc_cmd(arg)
     let escaped = substitute(a:arg, '[&|<>()@^]', '^&', 'g')
@@ -351,7 +348,7 @@ fun! sk#wrap(...)
     en
 
     " Action: g:skim_action
-    if !s:has_any(opts, ['sink', 'sink*'])
+    if !s:has_any(opts, ['sink', 'sinkS'])
         let opts._action = get(
                           \ g:,
                           \ 'skim_action',
@@ -363,7 +360,7 @@ fun! sk#wrap(...)
             return s:common_sink(self._action, a:lines)
         endf
 
-        let opts['sink*'] = remove(opts, 'sink')
+        let opts['sinkS'] = remove(opts, 'sink')
     en
 
     return opts
@@ -383,7 +380,7 @@ fun! sk#run(...) abort
                     \ ? copy(a:1)
                      \: {}
         let temps  = { 'result': s:skim_tempname() }
-        let optstr = s:eval_opts(get(a_dict, 'options', ''))
+        let sk_opts = s:eval_opts( get(a_dict, 'options', '') )
         try
             let skim_exec = sk#shellescape(sk#exec())
         catch
@@ -398,18 +395,18 @@ fun! sk#run(...) abort
         if has_key(a_dict, 'source')
             let source = a_dict.source
             "\ echom "source 是: "   source
-            let type = type(source)
+            let a_type = type(source)
 
-            if type == v:t_string
+            if a_type == v:t_string
                 let prefix = '( ' . source . ' )|'
 
-            elseif type == v:t_list
+            elseif a_type == v:t_list
                 let temps.input = s:skim_tempname()
                 call writefile(
-                    \ map(source, '<SID>enc_to_cp(v:val)'),
-                    \ temps.input,
-                   \ )
-                let prefix = 'cat ' . sk#shellescape(temps.input) .'|'
+                         \ map(source, 'v:val'),
+                         \ temps.input,
+                       \ )
+                let prefix = 'cat ' . sk#shellescape(temps.input) . '|'
             el
                 throw 'Invalid source type'
             en
@@ -438,16 +435,16 @@ fun! sk#run(...) abort
         en
         if use_height
             let height = s:calc_size(&lines, a_dict.down, a_dict)
-            let optstr .= ' --height=' . height
+            let sk_opts .= ' --height=' . height
         elseif use_term
-            let optstr .= ' --no-height'
+            let sk_opts .= ' --no-height'
         en
-        let command = prefix . (use_tmux
+        let sh_cmd = prefix . (use_tmux
                                 \ ? s:skim_tmux(a_dict)
                                 \ : skim_exec)
-                       \ . ' ' . optstr . ' > ' . temps.result
+                       \ . ' ' . sk_opts . ' > ' . temps.result
 
-        "\ echom "command, 是: "   command
+        "\ echom "sh_cmd, 是: "   sh_cmd
         "\ /home/wf/dotF/zsh/zshenv.zsh里有2个skim的env var,
         "\ 本文件 不受alias.zsh里的sk的alias影响
             " ( git ls-files  | uniq )|
@@ -466,12 +463,12 @@ fun! sk#run(...) abort
             " \ > /tmp/nvimuscF4Q/22
 
         if use_term
-            return s:execute_term(a_dict, command, temps)
+            return s:execute_term(a_dict, sh_cmd, temps)
 
         el
             let lines = use_tmux
-                    \ ? s:execute_tmux(a_dict, command, temps)
-                    \ : s:execute(a_dict, command, use_height, temps)
+                    \ ? s:execute_tmux(a_dict, sh_cmd, temps)
+                    \ : s:execute(a_dict, sh_cmd, use_height, temps)
 
             call s:callback(a_dict, lines)
             return lines
@@ -804,17 +801,15 @@ fun! s:execute_term(a_dict, command, temps) abort
         call termopen(cmd, term_opts)
         " set shellcmdflag-=-i
 
-        " todo:
-            " 参考jobstart() 的callback, 看为啥有个不碍事的报错
-
-        redir >> ~/.t/2c.vim
-            silent  echom "term_opts 是:"
-            silent  echom  term_opts
-            silent  echom ""
-
-            silent  echom "cmd 是:"
-            silent  echom cmd
-        redir END
+        "\ 之前debug留下的
+            "\ redir > ~/.t/2c.vim
+            "\     silent  echom "term_opts 是:"
+            "\     silent  echom  term_opts
+            "\     silent  echom ""
+            "\
+            "\     silent  echom "cmd 是:"
+            "\     silent  echom cmd
+            "\ redir END
     finally
         call s:do_popd()
     endtry
@@ -828,7 +823,9 @@ endf
 
 fun! s:collect(temps) abort
     try
-        return filereadable(a:temps.result) ? readfile(a:temps.result) : []
+        return filereadable(a:temps.result)
+            \ ? readfile(a:temps.result)
+            \ : []
     finally
         for tf in values(a:temps)
             silent! call delete(tf)
@@ -851,8 +848,8 @@ fun! s:callback(a_dict, lines) abort
             endfor
         en
 
-        if has_key(a:a_dict, 'sink*')
-            call a:a_dict['sink*'](a:lines)
+        if has_key(a:a_dict, 'sinkS')
+            call a:a_dict['sinkS'](a:lines)
         en
 
     catch

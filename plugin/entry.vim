@@ -5,12 +5,12 @@ let s:is_win = has('win32') || has('win64')
 "\ preview
 fun! s:pv(bang, ...)
     let preview_window = get(
-                        \ g:,
-                        \ 'fzf_preview_window',
+                        \ g:                   ,
+                        \ 'fzf_preview_window' ,
                            \ a:bang  && &columns >= 80
                         \ || &columns >= 120
-                              \ ? 'right'
-                               \: '',
+                             \ ? 'right'
+                              \: ''           ,
                        \ )
     if len(preview_window)
         return call(
@@ -47,8 +47,8 @@ com! -bang -bar -nargs=? -complete=buffer Buffers  call sk_funs#buffers(
                                                                   \ <bang>0,
                                                                 \ )
 
-com! -bang      -nargs=* Lines                     call sk_funs#lines(<q-args>, <bang>0)
-com! -bang      -nargs=* BLines                    call sk_funs#buffer_lines(<q-args>, <bang>0)
+com! -bang      -nargs=* Lines                     call sk_funs#Lines(<q-args>, <bang>0)
+com! -bang      -nargs=* BLines                    call sk_funs#Buffer_Lines(<q-args>, <bang>0)
 
 com! -bang      -nargs=+ -complete=dir Locate      call sk_funs#locate(<q-args>, s:pv(<bang>0), <bang>0)
 com! -bang      -nargs=* Rg                        call sk_funs#rg_interactive(<q-args>, s:pv(<bang>0), <bang>0)

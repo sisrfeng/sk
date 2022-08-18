@@ -12,7 +12,7 @@ let s:cpo_save = &cpo  | set cpo&vim
        \ }
 
 
-    let s:wide    = 120
+    let s:min_width    = 120
     let s:warned  = 0
     let s:checked = 0
 
@@ -37,7 +37,7 @@ let s:cpo_save = &cpo  | set cpo&vim
                              \ '[0-9.]*',
                             \ )
 
-        if s:version_requirement(sk_version, s:min_version)
+        if s:version_requirement(sk_version, '0.9.3' )
             let s:checked = 1
             return
         el
@@ -198,13 +198,13 @@ let s:cpo_save = &cpo  | set cpo&vim
                     \ : opts.options
         en
 
-        " if sink or sink* is found
+        " if sink or sinkS is found
             " sk#wrap does not append  `--expect`
         if options !~ '--expect'
-     \ && has_key(opts, 'sink*')
-            let Sink = remove(opts, 'sink*')
-            let wrapped = sk#wrap(a:name, opts, a:bang)
-            let wrapped['sink*'] = Sink
+      \ && has_key(opts, 'sinkS')
+            let A_sink           = remove(opts, 'sinkS')
+            let wrapped          = sk#wrap(a:name, opts, a:bang)
+            let wrapped['sinkS'] = A_sink
         el
             let wrapped = sk#wrap(a:name, opts, a:bang)
         en
@@ -212,7 +212,12 @@ let s:cpo_save = &cpo  | set cpo&vim
     endf
 
     fun! s:strip(str)
-        return substitute(a:str, '^\s*\|\s*$', '', 'g')
+        return substitute(
+                    \ a:str,
+                    \ '^\s*\|\s*$',
+                    \ '',
+                    \ 'g',
+                  \ )
     endf
 
     fun! s:chomp(str)
@@ -307,8 +312,11 @@ let s:cpo_save = &cpo  | set cpo&vim
                   \ "endf"
         endfor
 
-    fun! s:buflisted()
-        return filter(range(1, bufnr('$')), 'buflisted(v:val) && getbufvar(v:val, "&filetype") != "qf"')
+    fun! s:BufListed()
+        return filter(
+                \ range(1, bufnr('$')),
+                \ 'buflisted(v:val)  &&    getbufvar(v:val, "&filetype") != "qf"',
+              \ )
     endf
 
     fun! s:to_run(name, opts, opts2)
@@ -343,7 +351,7 @@ let s:cpo_save = &cpo  | set cpo&vim
     endf
 
     " tab split只是workaround, 先让本buffer多占一个tab, 后续用:buffer等命令
-    let s:key2editCmd = {
+    let s:key2cmd = {
       "\ \ 'enter'  : '-tab drop', 报错  Vim(drop):E471: Argument required: silent -tab drop
       \ 'enter'  : '-tab split',
       \ 'ctrl-t' : '-tab split',
@@ -356,13 +364,13 @@ let s:cpo_save = &cpo  | set cpo&vim
                   \ ? a:1
                   \ : ''
         let Cmd = get(
-                \ get(
-                    \ g:            ,
-                   \ 'sk_editCmd'   ,
-                    \ s:key2editCmd ,
-                   \ ),
-                \ a:key,
-                \ cmd_spec,
+                 \ get(
+                      \ g:            ,
+                      \ 'sk_editCmd'   ,
+                      \ s:key2cmd ,
+                    \ ),
+                 \ a:key,
+                 \ cmd_spec,
                \ )
 
         return  type(Cmd) == v:t_string
@@ -374,7 +382,7 @@ let s:cpo_save = &cpo  | set cpo&vim
         if stridx('edit', a:cmd) == 0 && fnamemodify(a:target, ':p') ==# expand('%:p')
             return
         en
-        exe     a:cmd fnameescape(a:target)
+        exe   a:cmd fnameescape(a:target)
     endf
 
     fun! s:align_lists(lists)
@@ -475,7 +483,7 @@ let s:cpo_save = &cpo  | set cpo&vim
     endf
 
 " Lines
-    fun! s:line_handler(lines)
+    fun! s:Line_sink(lines)
         if len(a:lines) < 2  | return  | en
           " 只有prompt等
 
@@ -500,27 +508,29 @@ let s:cpo_save = &cpo  | set cpo&vim
     fun! sk_funs#_lines(all)
         let cur  = []
         let rest = []
-        let buf  = bufnr('')
-        let longest_name = 0
-        let display_bufnames =  &columns > s:wide
+        let bufn  = bufnr('')
+        let max_len_name     = 0
+        let display_bufnames = &columns > s:min_width
 
         if display_bufnames
             let bufnames = {}
-            for buf in s:buflisted()
-                let bufnames[buf] = pathshorten(fnamemodify(bufname(buf), ":~:."))
-                let longest_name = max([longest_name, len(bufnames[buf])])
+            for buf_nr in s:BufListed()
+                "\ echom "buf_nr 是: "   buf_nr
+                "\ 数字, 比如 1  4
+                let bufnames[buf_nr] = pathshorten(fnamemodify(bufname(buf_nr), ":~:."))
+                let max_len_name = max([max_len_name, len( bufnames[buf_nr] ) ])
             endfor
         en
 
-        let len_bufnames = min([15, longest_name])
-        for buf in s:buflisted()
-            let lines = getbufline(buf, 1, "$")
+        let len_bufnames = min([15, max_len_name])
+        for buf_nr in s:BufListed()
+            let lines = getbufline(buf_nr, 1, "$")
             if empty(lines)
-                let path = fnamemodify(bufname(buf), ':p')
+                let path = fnamemodify(bufname(buf_nr), ':p')
                 let lines = filereadable(path) ? readfile(path) : []
             en
             if display_bufnames
-                let bufname = bufnames[buf]
+                let bufname = bufnames[buf_nr]
                 if len(bufname) > len_bufnames + 1
                     let bufname = '…' . bufname[-len_bufnames+1:]
                 en
@@ -531,45 +541,60 @@ let s:cpo_save = &cpo  | set cpo&vim
             el
                 let bufname = ''
             en
-            let linefmt = s:blue("%2d\t", "TabLine")."%s".s:yellow("\t%4d ", "LineNr")."\t%s"
-            call extend(buf == buf ? cur : rest,
-            \ filter(
-            \   map(lines,
-            \       '(!a:all && empty(v:val)) ? "" : printf(linefmt, buf, bufname, v:key + 1, v:val)'),
-            \   'a:all || !empty(v:val)'))
+
+            call extend( buf_nr == buf_nr
+                         \ ? cur
+                         \ : rest,
+                      \  filter(
+                             \   map(
+                                    \ lines,
+                                    \ '(!a:all && empty(v:val))
+                                            \ ? ""
+                                             \: printf(s:blue("%2d\t", "TabLine") . "%s" . s:yellow("\t%4d ", "LineNr") . "\t%s",
+                                                           \ buf_nr       ,
+                                                                                \ bufname   ,
+                                                                                           \ v:key + 1 ,
+                                                                                                                    \ v:val     ,
+                                                    \ )',
+                                  \ ),
+                             \   'a:all || !empty(v:val)')
+                              \)
         endfor
         return [display_bufnames, extend(cur, rest)]
     endf
 
-    fun! sk_funs#lines(...)
-        let [display_bufnames, lines] = sk_funs#_lines(1)
+    fun! sk_funs#Lines(...)
+        let [display_bufnames, lineS] = sk_funs#_lines(1)
         let nth = display_bufnames
                 \ ? 3
                 \ : 2
+
+        echom "nth 是: "   nth
+        "\ 输出3
+
         let [query, args] = (a:0 && type(a:1) == type('')) ?
                         \ [a:1, a:000[1:]]
                         \ : ['', a:000]
-        return
-            \ s:to_run('lines',
-                   \ {
-                    \ 'source':  lines,
-                    \ 'sink*':   function('s:line_handler'),
-                    \ 'options': [
-                                \ '--no-multi',
-                                \ '--tiebreak=index',
-                                \ '--prompt',
-                                    \ 'Lines> ',
-                                \ '--nth='.nth.'..',
-                                \ '--tabstop=1',
-                                \ '--query',  query,
-                             \ ]
-                   \},
-                  \ args
-                \ )
+        return s:to_run( 'Lines',
+                \ {
+                 \ 'source':  lineS,
+                 \ 'sinkS':   function('s:Line_sink'),
+                 \ 'options': [
+                             \ '--no-multi',
+                             \ '--tiebreak=index',
+                             \ '--prompt',
+                                 \ 'Lines> ',
+                             \ '--nth=' . nth . '..',
+                             \ '--tabstop=1',
+                             \ '--query',  query,
+                          \ ]
+                \},
+               \ args
+            \ )
     endf
 
 " BLines
-    fun! s:buffer_line_sink(lines)
+    fun! s:BLines_sink(lines)
     echom "lines 是: "   a:lines
         "\ || lines 是:  ['enter', '  352 ^I    fun! s:align_lists(lists)']
         "\ || lines 是:  ['enter', '  901 ^I                "\ shell执行的是它?    sh -c ''rg --line-number ...''']
@@ -608,15 +633,13 @@ let s:cpo_save = &cpo  | set cpo&vim
         norm! ^zvzz
     endf
 
-    fun! s:blines_source(query)
-        " 不用加call, 说明不是function
+    fun! s:BLines_source(query)
             " echom s:yellow('any_string','In_BackticK')
             " 输出 ^[[38;2;0;0;0;48;2;224;224;223maaaa^[[m
-
-        let fmtexpr = 'printf(
-                        \ s:yellow(" %4d ", "LineNr") . "\t%s",
-                        \ v:key + 1,
-                        \ v:val,
+        let digits = len(string( line('$') ) )
+        let fmtexpr = 'printf( s:yellow( "%" . digits . "d", "Normal") . "\t%s" ,
+                              \ v:key + 1                           ,
+                                                   \ v:val          ,
                        \ )'
         let lines = getline(1, '$')
         " 往后搜
@@ -638,25 +661,25 @@ let s:cpo_save = &cpo  | set cpo&vim
         endif
     endf
 
-    " call sk_funs#buffer_lines(<q-args>, <bang>0)
-    fun! sk_funs#buffer_lines(...)
+    " call sk_funs#Buffer_Lines(<q-args>, <bang>0)
+    fun! sk_funs#Buffer_Lines(...)
         let [query, args] = (a:0 && type(a:1) == type(''))
                         \ ? [a:1, a:000[1:]]
                         \ : ['', a:000]
-        return s:to_run('blines',
-               \ {
-               \ 'source'  : s:blines_source(query)         ,
-               \ 'sink*'   : function('s:buffer_line_sink') ,
-               \ 'options' : s:reverse_list([
-                   \ '--no-multi',
-                   \ '--tiebreak=index',
-                   \ '--prompt',
-                       \ '本文件> ',
-                   \ '--nth=2..',
-                   \ '--tabstop=1',
-                  \ ])
-               \},
-             \ args
+        return s:to_run( 'blines',
+                 \ {
+                   \ 'source'  : s:BLines_source(query)         ,
+                   \ 'sinkS'   : function('s:BLines_sink') ,
+                   \ 'options' : s:reverse_list([
+                                           \ '--no-multi',
+                                           \ '--tiebreak=index',
+                                           \ '--prompt',
+                                               \ '本文件> ',
+                                           \ '--nth=2..',
+                                           \ '--tabstop=1',
+                                          \ ])
+                 \},
+              \   args
            \ )
     endf
 
@@ -737,7 +760,7 @@ let s:cpo_save = &cpo  | set cpo&vim
         return s:to_run('history-command',
                \ {
                 \ 'source':  s:history_source(':'),
-                \ 'sink*':   function('s:cmd_history_sink'),
+                \ 'sinkS':   function('s:cmd_history_sink'),
                 \ 'options':    '--prompt="历史命令> "'
                             \ .  ' --header-lines=1'
                             \ .  ' --expect=ctrl-e'
@@ -754,7 +777,7 @@ let s:cpo_save = &cpo  | set cpo&vim
         return s:to_run('history-search',
                 \ {
                  \ 'source':  s:history_source('/'),
-                 \ 'sink*':   function('s:search_history_sink'),
+                 \ 'sinkS':   function('s:search_history_sink'),
                  \ 'options': '--prompt="Hist/> " --header-lines=1 --expect=ctrl-e --tiebreak=index'
                 \ },
                 \ a:000
@@ -828,17 +851,17 @@ endf
             \ 'source':  'git -c color.status=always status --short --untracked-files=all',
             \ 'dir':     g_root,
             \ 'options': [
-                \ '--nth',
-                    \ '2..,..',
-                \ '--tiebreak=index',
-                \ '--prompt',
-                    \ 'git status> ',
-                \ '--preview',
-                    \ 'sh -c "(  git diff --color=always -- {-1} | sed 1,4d; cat {-1} )    | head -1000"  ',
-               \ ]
+                       \ '--nth',
+                           \ '2..,..',
+                       \ '--tiebreak=index',
+                       \ '--prompt',
+                           \ 'git status> ',
+                       \ '--preview',
+                           \ 'sh -c "(  git diff --color=always -- {-1} | sed 1,4d; cat {-1} )    | head -1000"  ',
+                     \ ]
         \})
         call s:remove_layout(wrapped)
-        let wrapped.common_sink = remove(wrapped, 'sink*')
+        let wrapped.common_sink = remove(wrapped, 'sinkS')
 
         fun! wrapped.newsink(lines)
             let lines = extend(
@@ -851,128 +874,21 @@ endf
             return self.common_sink(lines)
         endf
 
-        let wrapped['sink*'] = remove( wrapped, 'newsink')
+        let wrapped['sinkS'] = remove( wrapped, 'newsink')
         echom "准备return s:to_run"
 
         return s:to_run('GStatus', wrapped, a:000)
     endf
 
 " Buffers
-        fun! s:find_open_window(buf)
-            let [tcur, tcnt] = [tabpagenr() - 1, tabpagenr('$')]
-            for toff in range(0, tabpagenr('$') - 1)
-                let t = (tcur + toff) % tcnt + 1
-                let buffers = tabpagebuflist(t)
-                for w in range(1, len(buffers))
-                    let buf = buffers[w - 1]
-                    if buf == a:buf
-                        return [t, w]
-                    en
-                endfor
-            endfor
-            return [0, 0]
-        endf
-
-        fun! s:tab_win(n_tab, n_win)
-            exe   a:n_tab . 'tabnext'
-            exe   a:n_win . 'wincmd w'
-        endf
-
-        fun! s:bufopen(lines)
-            if len(a:lines) < 2
-                return
-            en
-            let buf = matchstr(a:lines[1], '\[\zs[0-9]*\ze\]')
-            if empty(a:lines[0]) && get(g:, 'fzf_buffers_jump')
-                let [n_tab, n_win] = s:find_open_window(buf)
-                if n_tab
-                    call s:tab_win(n_tab, n_win)
-                    return
-                en
-            en
-
-            let cmd = s:edit_cmd(a:lines[0] )
-            " echom "s:edit_cmd(a:lines[0]) 是: "   s:edit_cmd(a:lines[0])
-            " 有的地方能识别出'enter', 这里为空
-            if !empty(cmd)
-                exe    'silent' cmd
-            el
-                exe    'silent' '-tab split'
-                " let cmd = s:edit_cmd(a:lines[0], '-tab split ')
-                " 或者用它?
-                " let cmd = s:edit_cmd(a:lines[0], '-tab split ')
-            en
-
-            exe   'buffer' buf
-        endf
-
-        fun! sk_funs#_format_buffer(buf)
-            let name = bufname(a:buf)
-            let line = exists('*getbufinfo')
-                    \ ? getbufinfo(a:buf)[0]['lnum']
-                    \ : 0
-
-            let name = empty(name)
-                    \ ? 'No Name'
-                    \ : fnamemodify(name, ":p:~:.")
-
-            let flag = a:buf == bufnr('')
-                    \ ? s:blue('%', 'Conditional')
-                    \ : (a:buf == bufnr('#')
-                            \ ? s:magenta('#', 'Special')
-                            \ : ' ')
-
-
-
-            let modified = getbufvar(a:buf, '&modified')
-                        \ ? s:red('[+]', 'In_BackticK')
-                        \ : ''
-
-            let readonly = getbufvar(a:buf, '&modifiable')
-                        \ ? ''
-                        \ : s:green(' [RO]', 'Normal')
-
-            let opts2 = join(filter([modified, readonly], '!empty(v:val)'), '')
-            let target = line == 0
-                    \ ? name
-                    \ : name . ':' . line
-            return s:strip(printf(
-                            \ "%s\t%d\t[%s] %s\t%s\t%s",
-                            \ target,
-                            \ line,
-                            \ s:yellow(a:buf, 'Number'),
-                            \ flag,
-                            \ name,
-                            \ opts2,
-                        \ )
-                 \)
-        endf
-
-        fun! s:sort_buffers(...)
-            let [b1, b2] = map(
-                         \ copy(a:000),
-                         \ 'get(g:sk_funs#buffers, v:val, v:val)',
-                        \ )
-            " Usi
-            " g minus between a float and a number in a sort function causes an error
-            " 根据load的顺序来排?
-            return b1 < b2
-            \ ? 1
-            \ : -1
-        endf
-
-        fun! sk_funs#_buflisted_sorted()
-            return sort(s:buflisted(), 's:sort_buffers')
-        endf
-
     fun! sk_funs#buffers(...)
         let [query, args] = (a:0 && type(a:1) == type('') )
                            \ ? [a:1, a:000[1:]]
                            \ : ['',  a:000]
         return s:to_run( 'Bufs',
                \ {
-                 \ 'source' : map(sk_funs#_buflisted_sorted(),  'sk_funs#_format_buffer(v:val)'),
-                 \ 'sink*'  : function('s:bufopen'),
+                 \ 'source' : map(sk_funs#_buflisted_sorted(),  'sk_funs#_beauty_buf(v:val)'),
+                 \ 'sinkS'  : function('s:Buffers_sink'),
                  \ 'options': [
                              \ '--tiebreak=index' ,
                              "\ \ '--header-lines=1' ,
@@ -989,6 +905,133 @@ endf
               \ args
            \ )
     endf
+
+        fun! sk_funs#_beauty_buf(bufn)
+            let name = bufname(a:bufn)
+            let name = empty(name)
+                    \ ? 'No Name'
+                    \ : fnamemodify(name, ":p:~.")
+
+            let line = getbufinfo(a:bufn)[0]['lnum']
+
+            let name_line = line == 0
+                        \ ?   name
+                        \ :   name . ':' . line
+
+            if name =~ 'term:'
+                let name = name[7:]
+            en
+
+            "\ sharp or percent
+            let sharp_per = a:bufn == bufnr('')
+                    \ ? '%'
+                    \ : a:bufn == bufnr('#')
+                        \ ? '#'
+                        \ : ' '
+
+
+
+            let modified = getbufvar(a:bufn, '&modified')
+                        \ ? s:red('[+]', 'In_BackticK')
+                        \ : ''
+
+            let readonly = getbufvar(a:bufn, '&modifiable')
+                        \ ? ''
+                        \ : s:green(' [RO]', 'Normal')
+
+            let status = join(
+                       \ filter( [modified, readonly],    '!empty(v:val)'),
+                       \ '',
+                      \ )
+
+            "\ return s:strip(printf(  "%s" . "\t%d" . "\t %s" . "%s" . "\t%s" . "\t%s",
+            "\                 \ name_line,
+            "\                        \ line,
+            "\                                 \ s:yellow(a:bufn, 'Normal'),
+            "\                                           \ sharp_per,
+            "\                                                  \ name,
+            "\                                                            \ status,
+            "\             \ )
+            "\       \)
+
+            "\ 返回一个string
+            return s:strip(printf(   "%d" . "\t %s" . "%s" . "\t%s" . "\t%s",
+                            \ line,
+                                        \ a:bufn,
+                                                \ sharp_per,
+                                                        \ name,
+                                                                 \ status,
+                        \ )
+                  \)
+
+        endf
+
+        fun! s:Buffers_sink( a_list )
+            if len(a:a_list) < 2  | return  | en
+
+            let buf_nr = matchstr(a:a_list[1], '\v\t \zs[0-9]*\ze(\s|\%|#)\t')
+                                        "\ 从这一堆里找buf number
+                                        "\ s:strip(printf(  "%s" . "\t%d" . "\t %s" . "%s" . "\t%s" . "\t%s",
+
+            if empty(a:a_list[0])   &&   get(g:, 'skim_buffers_jump')
+                let [n_tab, n_win] = s:find_open_window(buf_nr)
+                if n_tab
+                    call s:tab_win(n_tab, n_win)
+                    return
+                en
+            en
+                            "\ a:a_list[0]  类似于:
+                                    "\ 1. 'ctrl-t'
+                                    "\ 或
+                                    " 2. '' (表示敲了<Enter>, 而有的地方能识别出'enter', 而非空白)
+            let cmd = s:edit_cmd( a:a_list[0] )
+            " echom "s:edit_cmd(a:a_list[0]) 是: "
+
+
+            exe   'silent' empty(cmd)
+                             \?  '-tab split'
+                             \:  cmd
+
+            exe   'buffer' buf_nr
+        endf
+
+            fun! s:tab_win(n_tab, n_win)
+                exe   a:n_tab . 'tabnext'
+                exe   a:n_win . 'wincmd w'
+            endf
+
+
+            fun! s:find_open_window(bufn)
+                let [tcur, tcnt] = [tabpagenr() - 1, tabpagenr('$')]
+                for toff in range(0, tabpagenr('$') - 1)
+                    let t = (tcur + toff) % tcnt + 1
+                    let buffers = tabpagebuflist(t)
+                    for w in range(1, len(buffers))
+                        let buf_nr = buffers[w - 1]
+                        if buf_nr == a:bufn
+                            return [t, w]
+                        en
+                    endfor
+                endfor
+                return [0, 0]
+            endf
+
+
+
+        fun! sk_funs#_buflisted_sorted()
+            return sort(s:BufListed(), 's:sort_buffers')
+        endf
+
+                              fun! s:sort_buffers(...)
+                                  let [b1, b2] = map(
+                                              \ copy(a:000),
+                                              \ 'get(g:sk_funs#buffers, v:val, v:val)',
+                                              \ )
+
+                                  return b1 < b2
+                                   \ ? 1
+                                   \ : -1
+                              endf
 
 " Ag / Rg
     fun! s:ag_to_qf(line, has_column)
@@ -1081,7 +1124,7 @@ endf
                 return s:ag_handler(a:lines, self.column)
             endf
 
-            let opts['sink*'] = remove(opts, 'sink')
+            let opts['sinkS'] = remove(opts, 'sink')
             " echom "opts是: "   opts
 
             " echom "a:000 是: "   a:000
@@ -1163,7 +1206,7 @@ endf
                     fun! opts.sink(lines)
                         return s:ag_handler(a:lines, self.column)
                     endf
-                    let opts['sink*'] = remove(opts, 'sink')
+                    let opts['sinkS'] = remove(opts, 'sink')
                     try
                         let prev_default_cmd = $SKIM_DEFAULT_COMMAND
                         let $SKIM_DEFAULT_COMMAND = a:grep_cmd
@@ -1226,10 +1269,27 @@ endf
             let tag_cmds = [tag_cmds]
         en
         try
-            return s:to_run('btags', {
-            \ 'source':  s:btags_source(tag_cmds),
-            \ 'sink*':   function('s:btags_sink'),
-            \ 'options': s:reverse_list(['-d', '\t', '--with-nth', '1,4..', '-n', '1', '--prompt', 'BTags> ', '--query', a:query, '--preview-window', '+{3}-/2'])}, args)
+            return s:to_run( 'btags',
+                     \{
+                      \ 'source':  s:btags_source(tag_cmds),
+                      \ 'sinkS':   function('s:btags_sink'),
+                      \ 'options': s:reverse_list([
+                                              \ '-d',
+                                              \ '\t',
+                                              \ '--with-nth',
+                                              \ '1,4..',
+                                              \ '-n',
+                                              \ '1',
+                                              \ '--prompt',
+                                              \ 'BTags> ',
+                                              \ '--query',
+                                              \ a:query,
+                                              \ '--preview-window',
+                                              \ '+{3}-/2',
+                                             \ ])
+                     \},
+                     \args
+                   \)
         catch
             return s:warn(v:exception)
         endtry
@@ -1305,7 +1365,7 @@ endf
 
         return s:to_run('tags', {
         \ 'source':  'perl '.sk#shellescape(s:bin.tags).' '.join(map(tagfiles, 'sk#shellescape(fnamemodify(v:val, ":p"))')),
-        \ 'sink*':   function('s:tags_sink'),
+        \ 'sinkS':   function('s:tags_sink'),
         \ 'options': extend(opts, ['--nth', '1..2', '--tiebreak=begin', '--prompt', 'Tags> ', '--query', a:query])}, a:000)
     endf
 
@@ -1395,7 +1455,7 @@ endf
                     \ 'commands',
                     \{
                         \ 'source':  extend(extend(list[0:0], map(list[1:], 's:format_cmd(v:val)')), s:excmds()),
-                        \ 'sink*':   function('s:command_sink'),
+                        \ 'sinkS':   function('s:command_sink'),
                         \ 'options': '--expect ' . get(g:, 'fzf_commands_expect', 'ctrl-x').
                     \            ' --tiebreak=index --header-lines 1  --prompt "Commands> " -n2,3,2..3 -d'.s:nbs
                     \},
@@ -1426,7 +1486,7 @@ endf
         let list = split(cout, "\n")
         return s:to_run('marks', {
         \ 'source':  extend(list[0:0], map(list[1:], 's:format_mark(v:val)')),
-        \ 'sink*':   function('s:mark_sink'),
+        \ 'sinkS':   function('s:mark_sink'),
         \ 'options': '--tiebreak=index --header-lines 1 --tiebreak=begin --prompt "Marks> "'}, a:000)
     endf
 
@@ -1472,7 +1532,7 @@ endf
                 \ 'source'  : shell_cmd,
                 \ 'sink'    : function('s:helptag_sink'),
                 \ 'options' : [
-                            \ '--prompt=Help >'       ,
+                            \ '--prompt=> '       ,
                             \ '--tiebreak=begin'      ,
                             \ '--with-nth'            ,
                             \ '..-2'                  ,
@@ -1494,8 +1554,8 @@ endf
 
 " Windows
     fun! s:format_win(tab, win, buf)
-        let modified = getbufvar(a:buf, '&modified')
-        let name = bufname(a:buf)
+        let modified = getbufvar(a:bufn, '&modified')
+        let name = bufname(a:bufn)
         let name = empty(name) ? '[No Name]' : name
         let active = tabpagewinnr(a:tab) == a:win
         return (active? s:blue('> ', 'Operator') : '  ') . name . (modified? s:red(' [+]', 'Exception') : '')
@@ -1590,12 +1650,12 @@ endf
                    \? 'BCommits'
                    \: 'Commits'
         let expect_keys = join(
-                          \ keys( get(g:, 'sk_editCmd', s:key2editCmd) ),
+                          \ keys( get(g:, 'sk_editCmd', s:key2cmd) ),
                           \ ',',
                         \ )
         let opts = {
         \ 'source':  source,
-        \ 'sink*':   function('s:commits_sink'),
+        \ 'sinkS':   function('s:commits_sink'),
         \ 'options': s:reverse_list([
             \ '--tiebreak=index',
             \ '--inline-info',
@@ -1613,10 +1673,14 @@ endf
             let opts.options[-1] .= ',ctrl-d'
         en
 
-        if !s:is_win && &columns > s:wide
+        if  &columns > s:min_width
             call extend(
-              \opts.options,
-            \ ['--preview', 'echo {} | grep -o "[a-f0-9]\{7,\}" | head -1 | xargs git show --format=format: --color=always | head -1000'])
+                   \opts.options,
+                  \ [
+                     \ '--preview',
+                     \ 'echo {} | grep -o "[a-f0-9]\{7,\}" | head -1 | xargs git show --format=format: --color=always | head -1000',
+                  \ ]
+                 \)
         en
 
         return s:to_run(
@@ -1684,7 +1748,7 @@ endf
             \ opts,
             \ ['-m', '-q', s:query],
            \ )
-        let opts['sink*'] = function('s:complete_insert')
+        let opts['sinkS'] = function('s:complete_insert')
         let s:reducer = s:pluck(
             \ opts,
             \ 'reducer',
@@ -1744,7 +1808,7 @@ endf
             echoerr 'Invalid argument: '.string(a:000)
             return ''
         en
-        for s in ['sink', 'sink*']
+        for s in ['sink', 'sinkS']
             if has_key(s:opts, s)
                 call remove(s:opts, s)
             en

@@ -17,6 +17,8 @@ fun! s:pv(bang, ...)
         "\       \ 'sk_funs#with_preview',
         "\       \ add(copy(a:000), preview_window),
         "\     \ )
+
+        "\ 废掉了pv函数__不要preview了__老是没显示:
         return {}
     el
         return {}

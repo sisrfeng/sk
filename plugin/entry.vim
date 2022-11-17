@@ -13,10 +13,11 @@ fun! s:pv(bang, ...)
                               \: ''           ,
                        \ )
     if len(preview_window)
-        return call(
-              \ 'sk_funs#with_preview',
-              \ add(copy(a:000), preview_window),
-            \ )
+        "\ return call(
+        "\       \ 'sk_funs#with_preview',
+        "\       \ add(copy(a:000), preview_window),
+        "\     \ )
+        return {}
     el
         return {}
     en
@@ -33,7 +34,7 @@ fun! s:history(arg, extra, bang)
 
     el
         call sk_funs#file_history(a:extra, bang)
-    en
+    endif
 endf
 
 

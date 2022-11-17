@@ -141,7 +141,8 @@ COMMANDS                                                      *fzf-vim-commands*
      - Bang-versions of the commands (e.g. `Ag!`)
         will open fzf in fullscreen
 
-    (1: `Helptags` will shadow the command of the same name from {pathogen}{10}.
+    (1: `Helptags` will shadow
+    the command of the same name from {pathogen}{10}.
     But its functionality is still available via `call pathogen#helptags()`.)
 
                              {6} https://github.com/ggreer/the_silver_searcher
@@ -323,7 +324,7 @@ CUSTOMIZATION                                            *fzf-vim-customization*
                  \ )
 
     会闪退, 不知道为啥
-    Example:  本不支持fuzzy的ripgrep + fzf  *fzf-vim-example-advanced-ripgrep-integration*
+    Example:  fzf + (本不支持fuzzy的)ripgrep   *fzf-vim-example-advanced-ripgrep-integration*
         In the default implementation of `Rg`,
             ripgrep process starts only once
                 with the initial query (e.g.  `:Rg foo`)
@@ -501,4 +502,4 @@ vim:tw=78:sw=2:ts=2:ft=help:norl:nowrap:
 leo_DIY
 DIY_v2
 DIY_again
-DIY_2  vim:filetype=help:syntax=help:
+DIY_2  vim:ft=help:

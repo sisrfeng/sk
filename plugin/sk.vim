@@ -1,5 +1,7 @@
-"\ 从skim(非vim插件)的repo里剥离出来, skim的bin用brew装的就行, skim(非vim插件)的目录在$TOOL,
-" 被我backup藏起来了
+"\ 从skim(非vim插件)的repo里剥离出来,
+" skim的bin用brew装的就行,
+" skim(非vim插件)的目录在$TOOL,
+    " 被我backup藏起来了
 
 " 放到autoload好像有问题??
 
@@ -227,10 +229,9 @@ fun! s:get_color(attr, ...)
 endf
 
 fun! s:ori_colors()
-    " Colors: g:skim_colors
-        " 在这里设了:
-        " /home/wf/dotF/cfg/nvim/colors/leo_light.vim
     let rules = copy( get( g:, 'skim_colors', {} )  )
+                           " 在这里设了:
+                           " /home/wf/dotF/cfg/nvim/colors/leo_light.vim
 
     let colors = join(
                 \ map(
@@ -291,8 +292,8 @@ fun! s:eval_opts(opts)
      en
 endf
 
-" [name string,] [opts dict,] [fullscreen boolean]
 fun! sk#wrap(...)
+    " 参数:  [name string,] [opts dict,] [fullscreen boolean]
     let args    = ['', {}, 0]
     let expects = map(copy(args), 'type(v:val)')
     let start = 0
@@ -995,10 +996,11 @@ fun! s:sk_cmd(bang, ...) abort
     call extend(opts.options, ['--prompt', prompt])
     call extend(opts.options, args)
     call sk#run(sk#wrap(
-                \ 'SKIM',
-                \ opts,
-                \ a:bang,
-               \ ))
+            \ 'SKIM',
+            \ opts,
+            \ a:bang,
+           \ )
+     \ )
 endf
 
 com!     -nargs=* -complete=dir -bang SK call s:sk_cmd(<bang>0, <f-args>)

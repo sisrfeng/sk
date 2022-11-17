@@ -16,34 +16,36 @@ let s:cpo_save = &cpo  | set cpo&vim
     let s:warned  = 0
     let s:checked = 0
 
-    fun! s:version_requirement(val, min)
+    fun! s:version_requirement(val, _min)
         let val = split(a:val, '\.')
-        let min = split(a:min, '\.')
-        for idx in range(0, len(min) - 1)
+        let _min = split(a:_min, '\.')
+        for idx in range(0, len(_min) - 1)
             let v = get(val, idx, 0)
-            if     v < min[idx] | return 0
-            elseif v > min[idx] | return 1
+            if     v < _min[idx] | return 0
+            elseif     v > _min[idx] | return 1
             en
         endfor
         return 1
     endf
 
     fun! s:check_requirements()
-        if s:checked  | return  | en
+        "\ if s:checked  | return  | en
+        "\
+        "\ let exec = sk#exec()
+        "\ let sk_version = matchstr(
+        "\                      \ systemlist(exec . ' --version')[0],
+        "\                      \ '[0-9.]*',
+        "\                     \ )
+        "\
+        "\ if s:version_requirement(sk_version, '0.9.3' )
+        "\     let s:checked = 1
+        "\     return
+        "\ el
+        "\     throw printf( 'You need to upgrade SK ' )
+        "\ en
 
-        let exec = sk#exec()
-        let sk_version = matchstr(
-                             \ systemlist(exec . ' --version')[0],
-                             \ '[0-9.]*',
-                            \ )
-
-        if s:version_requirement(sk_version, '0.9.3' )
             let s:checked = 1
             return
-        el
-            throw printf( 'You need to upgrade SK ' )
-        en
-
     endf
 
     fun! s:extend_opts(a_dict, opts, prepend)
@@ -352,8 +354,10 @@ let s:cpo_save = &cpo  | set cpo&vim
 
     " tab split只是workaround, 先让本buffer多占一个tab, 后续用:buffer等命令
     let s:key2cmd = {
-      "\ \ 'enter'  : '-tab drop', 报错  Vim(drop):E471: Argument required: silent -tab drop
-      \ 'enter'  : '-tab split',
+      \ 'enter'  : '-tab drop',
+      "\   ✗报错  Vim(drop):E471: Argument required: silent -tab drop✗
+        "\ 不报错了, 但还是-tab split的效果
+      "\ \ 'enter'  : '-tab split',
       \ 'ctrl-t' : '-tab split',
       \ 'ctrl-e' : 'edit',
       \ 'ctrl-v' : 'vsplit'
@@ -650,14 +654,14 @@ let s:cpo_save = &cpo  | set cpo&vim
             return map(lines, fmtexpr)
         el
             return filter(
-                    \ map(
-                        \ lines,
-                        \ 'v:val =~ a:query'
-                            \  '?' . fmtexpr .
-                            \ ' : ""',
-                    \ ),
-                \ 'len(v:val)',
-                \ )
+                   \ map(
+                       \ lines,
+                       \ 'v:val =~ a:query'
+                           \  '?' . fmtexpr .
+                           \ ' : ""',
+                      \ ),
+                  \ 'len(v:val)',
+                  \ )
         endif
     endf
 
@@ -706,8 +710,7 @@ let s:cpo_save = &cpo  | set cpo&vim
         \}, a:000)
     endf
 
-" History[:/]
-" mru
+" History:  History/ 和 mru
     fun! sk_funs#_recent_files()
         return sk_funs#_uniq(map(
                      \ filter([expand('%')], 'len(v:val)')
@@ -723,13 +726,14 @@ let s:cpo_save = &cpo  | set cpo&vim
         let max  = histnr(a:type)
         let fmt  = ' %'.len(string(max)).'d '
         let list = filter(map(range(1, max), 'histget(a:type, - v:val)'), '!empty(v:val)')
-        return extend([' :: Press '.s:magenta('CTRL-E', 'Special').' to edit'],
-            \ map(list, 's:yellow(printf(fmt, len(list) - v:key), "Number")." ".v:val'))
+        return extend(  [' :: Press '.s:magenta('CTRL-E', 'Special').' to edit'],
+                 \ map(list, 's:yellow(printf(fmt, len(list) - v:key), "Number") . " " . v:val')
+              \ )
     endf
 
-    nno      <plug>(-fzf-vim-do) :execute g:__fzf_command<cr>
-    nno      <plug>(-fzf-/) /
-    nno      <plug>(-fzf-:) :
+    nno      <plug>(-fzf-vim-do)   :exe g:__fzf_command<cr>
+    nno      <plug>(-fzf-/)        /
+    nno      <plug>(-fzf-:)        :
 
     fun! s:history_sink(type, lines)
         if len(a:lines) < 2
@@ -787,11 +791,11 @@ let s:cpo_save = &cpo  | set cpo&vim
     fun! sk_funs#file_history(...)
         return s:to_run(  'history-files',
                  \ {
-                     \ 'source':  sk_funs#_recent_files(),
-                     \ 'options': [
+                    \ 'source':  sk_funs#_recent_files(),
+                    \ 'options': [
                                 \ '--header-lines' , !empty(expand('%')) ,
-                                \ '--prompt'       , '文件历史> '        ,
-                        \         ]
+                                \ '--prompt'       , '文件历史 (当前tab打开了的文件,暂时不会显示)> '        ,
+                       \         ]
                   \},
                  \ a:000
                 \)
@@ -1146,11 +1150,11 @@ endf
                         \ ? '.'
                         \ : a:dir
 
-                let cmd = 'rg  --line-number --color=always '..get(g:, 'rg_opts', '') .. ' "{}" ' .. dir
+                let cmd = 'rg  --line-number --color=always ' . get(g:, 'rg_opts', '') . ' "{}" ' . dir
                 return call(
-                    \ 'sk_funs#grep_interactive',
-                    \ extend([cmd, 1], a:000),
-                   \ )
+                     \ 'sk_funs#grep_interactive',
+                     \ extend([cmd, 1], a:000),
+                    \ )
             endf
 
 
@@ -1504,8 +1508,15 @@ endf
     fun! sk_funs#helptags(...)
         if !executable('grep') || !executable('perl')  | return s:warn('Helptags command requires grep and perl')  | en
 
-        let sorted = sort(split(globpath(&runtimepath, 'doc/tags', 1), '\n'))
-        let tags = exists('*uniq')
+        let sorted = sort(split(globpath(
+                                    \ &runtimepath ,
+                                    \ 'doc/tags'   ,
+                                    \ 1            ,
+                                  \ ),
+                          \ '\n')
+                   \ )
+
+        let tags   = exists('*uniq')
                 \ ? uniq(sorted)
                 \ : sk_funs#_uniq(sorted)
 
@@ -1514,7 +1525,7 @@ endf
         let s:tmp_fname = tempname()
             " 该文件里是   /(.*?):(.*?)\t(.*?)\t/; printf(qq([38;2;128;112;48m%-40s[m\t%s\t%s\n), $2, $3, $1)
 
-        let search_regex =   [   '/(.*?):(.*?)\t(.*?)\t/; printf(qq(' . s:green('%-40s', 'Label') . '\t%s\t%s\n), $2, $3, $1)'  ]
+        let search_regex =   [  '/(.*?):(.*?)\t(.*?)\t/; printf(qq(' . s:green('%-40s', 'Label') . '\t%s\t%s\n), $2, $3, $1)'  ]
 
         call writefile(search_regex , s:tmp_fname)
 
